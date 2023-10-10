@@ -1,1 +1,1 @@
-# ADLCV-food-retrieval
+# ADLCV-recipe-retrieval
