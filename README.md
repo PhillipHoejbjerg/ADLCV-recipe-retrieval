@@ -2,6 +2,10 @@
 
 Image-to-recipe model
 
+data
+
+https://www.kaggle.com/datasets/pes12017000148/food-ingredients-and-recipe-dataset-with-images?rvi=1
+
 
 
 ==============================
