@@ -1,15 +1,11 @@
 import numpy as np
 import random
 import torch
-# use torchtext v.0.6.0
-from torchtext import data, datasets, vocab
-import torchdata.datapipes as dp
-# import torchtext.transforms as T
-import torchvision
-import torchvision.transforms as T
-from torchtext.vocab import build_vocab_from_iterator
 import os
 from PIL import Image
+import pandas as pd
+import matplotlib.pyplot as plt
+import torchvision.transforms as T
 
 
 NUM_CLS = 2
@@ -32,26 +28,43 @@ def set_seed(seed=1):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
 
-class ImageDataLoader(torch.utils.data.DataLoader):
+def denormalize(tensor):
+    return tensor * 0.225 + 0.45
+
+class ImageDataset(torch.utils.data.DataLoader):
     def __init__(self):
         self.path = 'data/processed/Food Images'
         self.image_files = os.listdir(self.path)
+        self.transform = T.Compose([
+            T.Resize((224, 224)),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406], 
+                        std=[0.229, 0.224, 0.225])
+        ])
+
     def __len__(self):
         return len(self.image_files)
     
     def __getitem__(self, idx):
         image_path = os.path.join(self.path, self.image_files[idx])
         image = Image.open(image_path)
+        image = self.transform(image)
         return image
 
-class ContrastiveImageDataLoader(torch.utils.data.DataLoader):
+class ContrastiveImageDataset(torch.utils.data.DataLoader):
     def __init__(self):
         self.path = 'data/processed/Food Images'
         self.image_files = os.listdir(self.path)
+        self.transform = T.Compose([
+            T.Resize((224, 224)),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406], 
+                        std=[0.229, 0.224, 0.225])
+        ])
     def __len__(self):
         return len(self.image_files)
     def random_idx(self, idx):
-        r_idx =  torch.randint(0,len(self.image_files),1).item()
+        r_idx =  torch.randint(0,len(self.image_files),(1,)).item()
         if r_idx == idx:
             r_idx = self.random_idx(idx)
         return r_idx
@@ -62,18 +75,13 @@ class ContrastiveImageDataLoader(torch.utils.data.DataLoader):
         r_idx = self.random_idx(idx)
         contrast_img = os.path.join(self.path, self.image_files[r_idx])
         contrast_img = Image.open(contrast_img)
-        return image, contrast_img
+        return self.transform(image), self.transform(contrast_img)
     
-class TextDataLoader(torch.utils.data.DataLoader):
+class TextDataSet(torch.utils.data.DataLoader):
     def __init__(self):
         FILE_PATH = 'data/Food Ingredients and Recipe Dataset with Image Name Mapping.csv'
-        self.data_pipe = dp.iter.IterableWrapper([FILE_PATH])
-        self.data_pipe = dp.iter.FileOpener(self.data_pipe, mode='rb')
-        self.data_pipe = self.data_pipe.parse_csv(skip_lines=1, delimiter=',', as_tuple=True)
-        # Image_Name = data_pipe[4]
-        # Recipe_title = data_pipe[1]
-        self.csv = list(self.data_pipe)
-        self.tokens = []
+        self.csv = pd.read_csv(FILE_PATH)
+
     def __len__(self):
         return len(self.csv)
     
@@ -81,15 +89,36 @@ class TextDataLoader(torch.utils.data.DataLoader):
         return text.split()
     
     def __getitem__(self, idx):
-        text = self.data_pipe[idx]
-        Image_Name = text[4]
-        Recipe_title = text[1]
+        text = self.csv.iloc[idx, :]
+        Image_Name = text.Image_Name
+        Recipe_title = text.Title
+        ingredients = text.Cleaned_Ingredients
         tokens = self.tokenize(Recipe_title)
         return tokens, Image_Name
     
-def main(batch_size=16):
-    data_loader = TextDataLoader()
-    data_loader = torch.utils.data.DataLoader(data_loader, batch_size=batch_size, shuffle=True)
+def collate_fn(batch):
+    tokens, Image_Name = zip(*batch)
+    return tokens, Image_Name
+
+def main(batch_size=3):
+    img_set = ImageDataset()
+    img_load = torch.utils.data.DataLoader(img_set, batch_size=batch_size, shuffle=True)
+    for img in img_load:
+        plt.imshow(img[0].permute(1,2,0))
+        plt.show()
+        break
+        
+    contrast_data = ContrastiveImageDataset()
+    contrast_load = torch.utils.data.DataLoader(contrast_data, batch_size=batch_size, shuffle=True)
+    fig, ax = plt.subplots(1,2, figsize=(14, 5))
+    for img, contrast_img in contrast_load:
+        ax[0].imshow(denormalize(img[0].permute(1,2,0)))
+        ax[1].imshow(denormalize(contrast_img[0].permute(1,2,0)))
+        plt.show()
+        break
+
+    data_loader = TextDataSet()
+    data_loader = torch.utils.data.DataLoader(data_loader, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     for tokens, Image_Name in data_loader:
         print(tokens)
         print(Image_Name)
