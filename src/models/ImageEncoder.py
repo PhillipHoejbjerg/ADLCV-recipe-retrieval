@@ -15,7 +15,7 @@ from typing import Tuple
 from vit_blank import *
 
 
-def get_image_encoder(choice: str, embed_dim: int=512) -> nn.Module:
+def get_image_encoder(choice: str, device_:torch.device, embed_dim: int=512) -> nn.Module:
 
     class ResNet50(nn.Module):
 
@@ -198,7 +198,7 @@ def get_image_encoder(choice: str, embed_dim: int=512) -> nn.Module:
 
 
 
-
+"""
 
 ###################
 # Jakob stuff #
@@ -329,4 +329,4 @@ for img in img_load:
     break
 
 
-
+"""

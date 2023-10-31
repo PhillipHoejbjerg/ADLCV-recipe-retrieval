@@ -12,7 +12,8 @@ torchvision
 torchtext
 torchdata
 lightning
-
+tensorboard
+pandas
 
 # backwards compatibility
 pathlib2

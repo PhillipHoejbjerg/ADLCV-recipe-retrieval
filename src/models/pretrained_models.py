@@ -3,18 +3,6 @@ import torch
 from text_encoder import TransformerTextEmbedder
 from torch.utils.data import DataLoader
 
-def get_image_encoder(model = 'resnet50'):
-    
-    if model == 'resnet50':
-        # Load the pre-trained model
-        img_encoder = tv.models.resnet50(pretrained=True)
-
-        # Remove the last layer
-        img_encoder = nn.Sequential(*list(img_encoder.children())[:-1])
-
-    return img_encoder
-
-
 class IngredientsEncoder(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, bidirectional):
         super(IngredientsEncoder, self).__init__()
