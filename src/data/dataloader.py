@@ -99,14 +99,14 @@ class TextDataSet(torch.utils.data.DataLoader):
         return Image_Name, title, ingredients, instructions
     
 def collate_fn(batch):
-    tokens, Image_Name = zip(*batch)
-    return tokens, Image_Name
+    Image_Name, title, ingredients, instructions = zip(*batch)
+    return Image_Name, title, ingredients, instructions
 
 def main(batch_size=3):
     img_set = ImageDataset()
     img_load = torch.utils.data.DataLoader(img_set, batch_size=batch_size, shuffle=True)
     for img in img_load:
-        plt.imshow(img[0].permute(1,2,0))
+        plt.imshow(denormalize(img[0].permute(1,2,0)))
         plt.show()
         break
         
@@ -121,9 +121,11 @@ def main(batch_size=3):
 
     data_loader = TextDataSet()
     data_loader = torch.utils.data.DataLoader(data_loader, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-    for tokens, Image_Name in data_loader:
-        print(tokens)
+    for Image_Name, title, ingredients, instructions in data_loader:
         print(Image_Name)
+        print(title)
+        print(ingredients)
+        print(instructions)
         break
 
 if __name__ == '__main__':
