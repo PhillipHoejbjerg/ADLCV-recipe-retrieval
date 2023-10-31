@@ -6,7 +6,8 @@ from PIL import Image
 import pandas as pd
 import matplotlib.pyplot as plt
 import torchvision.transforms as T
-
+from torch.utils.data import DataLoader
+from tokenization import yield_tokens_title, yield_tokens_title_and_ingredients, yield_tokens_title_and_ingredients_and_instructions, get_vocab, datapipe, collate_batch
 
 NUM_CLS = 2
 VOCAB_SIZE = 50_000
@@ -31,7 +32,7 @@ def set_seed(seed=1):
 def denormalize(tensor):
     return tensor * 0.225 + 0.45
 
-class ImageDataset(torch.utils.data.DataLoader):
+class ImageDataset(DataLoader):
     def __init__(self):
         self.path = 'data/processed/Food Images'
         self.image_files = os.listdir(self.path)
@@ -51,7 +52,7 @@ class ImageDataset(torch.utils.data.DataLoader):
         image = self.transform(image)
         return image
 
-class ContrastiveImageDataset(torch.utils.data.DataLoader):
+class ContrastiveImageDataset(DataLoader):
     def __init__(self):
         self.path = 'data/processed/Food Images'
         self.image_files = os.listdir(self.path)
@@ -77,7 +78,7 @@ class ContrastiveImageDataset(torch.utils.data.DataLoader):
         contrast_img = Image.open(contrast_img)
         return self.transform(image), self.transform(contrast_img)
     
-class TextDataSet(torch.utils.data.DataLoader):
+class TextDataSet(DataLoader):
     '''returns: Image_Name, title, ingredients, instructions'''
     def __init__(self):
         FILE_PATH = 'data/Food Ingredients and Recipe Dataset with Image Name Mapping.csv'
@@ -98,34 +99,77 @@ class TextDataSet(torch.utils.data.DataLoader):
         title, ingredients, instructions = self.tokenize(Recipe_title), self.tokenize(ingredients), self.tokenize(instructions)
         return Image_Name, title, ingredients, instructions
     
+class CombinedDataLoader(DataLoader):
+    '''
+    image, text, positive/negative pair (Bool)
+    positive pair = the image matches the text
+    parameter p, for probability of negative pair
+
+    test set should not have negative pairs
+    '''
+    
+    def __init__(self, batch_size=8, p=0.2, mode='train'):
+        self.text_loader = DataLoader(list(datapipe),
+                              batch_size=batch_size,
+                              shuffle=True,
+                              collate_fn=collate_batch)
+        
+        self.image_loader = ImageDataset()
+        self.p = p
+
+    def __len__(self):
+        return len(self.text_loader)
+    
+    def __getitem__(self, idx):
+        text = self.text_loader[idx]
+        if random.random() < self.p:
+            image = self.image_loader[idx]
+            is_pos_pair = True
+        else:
+            idx =  torch.randint(0,len(self.text_loader),(1,)).item()
+            image = self.image_loader[idx]
+            is_pos_pair = False
+        return image, text, is_pos_pair
+
+    
 def collate_fn(batch):
     Image_Name, title, ingredients, instructions = zip(*batch)
     return Image_Name, title, ingredients, instructions
 
 def main(batch_size=3):
-    img_set = ImageDataset()
-    img_load = torch.utils.data.DataLoader(img_set, batch_size=batch_size, shuffle=True)
-    for img in img_load:
-        plt.imshow(denormalize(img[0].permute(1,2,0)))
-        plt.show()
-        break
+    # img_set = ImageDataset()
+    # img_load = DataLoader(img_set, batch_size=batch_size, shuffle=True)
+    # for img in img_load:
+    #     plt.imshow(denormalize(img[0].permute(1,2,0)))
+    #     plt.show()
+    #     break
         
-    contrast_data = ContrastiveImageDataset()
-    contrast_load = torch.utils.data.DataLoader(contrast_data, batch_size=batch_size, shuffle=True)
-    fig, ax = plt.subplots(1,2, figsize=(14, 5))
-    for img, contrast_img in contrast_load:
-        ax[0].imshow(denormalize(img[0].permute(1,2,0)))
-        ax[1].imshow(denormalize(contrast_img[0].permute(1,2,0)))
-        plt.show()
-        break
+    # contrast_data = ContrastiveImageDataset()
+    # contrast_load = DataLoader(contrast_data, batch_size=batch_size, shuffle=True)
+    # fig, ax = plt.subplots(1,2, figsize=(14, 5))
+    # for img, contrast_img in contrast_load:
+    #     ax[0].imshow(denormalize(img[0].permute(1,2,0)))
+    #     ax[1].imshow(denormalize(contrast_img[0].permute(1,2,0)))
+    #     plt.show()
+    #     break
 
-    data_loader = TextDataSet()
-    data_loader = torch.utils.data.DataLoader(data_loader, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-    for Image_Name, title, ingredients, instructions in data_loader:
-        print(Image_Name)
-        print(title)
-        print(ingredients)
-        print(instructions)
+    # data_loader = TextDataSet()
+    # data_loader = DataLoader(data_loader, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    # for Image_Name, title, ingredients, instructions in data_loader:
+    #     print(Image_Name)
+    #     print(title)
+    #     print(ingredients)
+    #     print(instructions)
+    #     break
+
+    data_loader = CombinedDataLoader(batch_size=batch_size, p=0.2, mode='train')
+    data_loader = DataLoader(data_loader, batch_size=batch_size, shuffle=True)
+    fig, ax = plt.subplots(1,2, figsize=(14, 5))
+    for img, text, is_positive in data_loader:
+        ax[0].imshow(denormalize(img[0].permute(1,2,0)))
+        plt.show()
+        print(text[0])
+        print(is_positive[0])
         break
 
 if __name__ == '__main__':

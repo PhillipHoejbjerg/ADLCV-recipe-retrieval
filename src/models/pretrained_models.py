@@ -39,7 +39,7 @@ def get_ingredients_encodr(model = 'bidirectional_lstm'):
         return IngredientsEncoder(input_size=300, hidden_size=512, num_layers=2, bidirectional=True)
 
 
-def get_text_encoder(text=['title'], embed_dim=512, num_heads=8, num_layers=6, pos_enc='fixed', pool='mean', dropout=0.1, fc_dim=None, embed_dim_out=128, batch_size=8):
+def get_text_encoder(embed_dim=512, num_heads=8, num_layers=6, pos_enc='fixed', pool='mean', dropout=0.1, fc_dim=None, embed_dim_out=128):
     VOCAB_SIZE = 50_000
     MAX_SEQ_LEN = 512
     model = TransformerTextEmbedder(embed_dim=embed_dim, num_heads=num_heads, 
@@ -52,28 +52,7 @@ def get_text_encoder(text=['title'], embed_dim=512, num_heads=8, num_layers=6, p
                                 num_tokens=VOCAB_SIZE, 
                                 embed_dim_out=embed_dim_out,
                                 )
-    from src.data.tokenization import yield_tokens_title, yield_tokens_title_and_ingredients, yield_tokens_title_and_ingredients_and_instructions, get_vocab, datapipe, collate_batch
-
-
-    if text == ['title']:
-        yield_tokens = yield_tokens_title
-        return model
-    elif text == ['title', 'ingredients']:
-        yield_tokens = yield_tokens_title_and_ingredients
-
-    elif text == ['title', 'ingredients', 'instructions']:
-        yield_tokens = yield_tokens_title_and_ingredients_and_instructions
-
-    vocab = get_vocab(datapipe, yield_tokens)
-    collate_batch = collate_batch
-    dataloader = DataLoader(list(datapipe),
-                              batch_size=batch_size,
-                              shuffle=True,
-                              collate_fn=collate_batch)
-    
-    # image, text, positive/negative pair (Bool)
-
-    return dataloader
+    return model
 
 
 if __name__ == '__main__':
