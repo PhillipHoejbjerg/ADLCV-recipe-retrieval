@@ -1,15 +1,19 @@
-from torchdata.datapipes.iter import IterableWrapper, FileOpener
+import random
+
 import torch
+from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import DataLoader, Sampler
+from torchdata.datapipes.iter import FileOpener, IterableWrapper
+from torchtext.data.utils import get_tokenizer
+from torchtext.vocab import build_vocab_from_iterator
+
+# https://github.com/andrei-radulescu-banu/stat453-deep-learning-ss21/blob/main/L15/migration_tutorial.ipynb
 
 FILE_PATH = 'data/Food Ingredients and Recipe Dataset with Image Name Mapping.csv'
 
 datapipe = IterableWrapper([FILE_PATH])
 datapipe = FileOpener(datapipe, mode='b')
 datapipe = datapipe.parse_csv(skip_lines=1)
-
-
-from torchtext.vocab import build_vocab_from_iterator
-from torchtext.data.utils import get_tokenizer
 
 tokenizer = get_tokenizer('basic_english')
 
@@ -27,21 +31,19 @@ def get_vocab(train_datapipe):
 
 vocab = get_vocab(datapipe)
 
-from torch.utils.data import DataLoader
-from torch.nn.utils.rnn import pad_sequence
-
 def collate_batch(batch):
     label_list, text_list = [], []
     text_transform = lambda x: [vocab['']] + [vocab[token] for token in tokenizer(x)] + [vocab['']]
-    label_transform = lambda x: 1 if x == 'pos' else 0
 
     for _text in batch:
         # label_list.append(label_transform(_label))
-        _text = _text[1] # just the title for now
-        processed_text = torch.tensor(text_transform(_text))
+        text = _text[1] # just the title for now
+        label = int(_text[0])
+        processed_text = torch.tensor(text_transform(text))
         text_list.append(processed_text)
+        label_list.append(label)
 
-    return pad_sequence(text_list, padding_value=3.0), # torch.tensor(label_list), 
+    return torch.tensor(label_list), pad_sequence(text_list, padding_value=3.0)
 
 train_iter = datapipe
 train_dataloader = DataLoader(list(train_iter),
@@ -49,9 +51,6 @@ train_dataloader = DataLoader(list(train_iter),
                               shuffle=True,
                               collate_fn=collate_batch)
 
-
-import random
-from torch.utils.data import Sampler
 
 train_iter = datapipe
 train_list = list(train_iter)
@@ -94,6 +93,8 @@ bucket_dataloader = DataLoader(train_list,
                                      dataset = train_list, 
                                      batch_size=batch_size),
                                collate_fn=collate_batch)
-print(next(iter(bucket_dataloader)))
 
-print(next(iter(train_dataloader)))
+if __name__ == '__main__':
+    print(next(iter(bucket_dataloader)))
+
+    print(next(iter(train_dataloader)))

@@ -184,20 +184,13 @@ def main(embed_dim=128, num_heads=4, num_layers=4, pos_enc='fixed', pool='max', 
     if torch.cuda.is_available():
         model = model.to('cuda')
 
-    from src.data.dataloader import TextDataSet, collate_fn
-    from torch.utils.data import DataLoader
+    from src.data.tokenization import train_dataloader
 
-    train_dataset = TextDataSet()
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=1, collate_fn=collate_fn)
-
-    dummy_input = next(iter(train_loader))
-    Image_Name, title, ingredients, instructions = dummy_input[0][0], dummy_input[1][0], dummy_input[2][0], dummy_input[3][0]
-    dummy_output = model(title)
+    idxs, dummy_input = next(iter(train_dataloader))
+    dummy_input = dummy_input.to(device)
+    dummy_output = model(dummy_input)
     print(dummy_output.shape)
-
-    from torchtext.data.utils import get_tokenizer
-    from torchtext.vocab import build_vocab_from_iterator
-    from torch.utils.data import DataLoader
+    print(dummy_output)
 
 if __name__ == '__main__':
     main()
