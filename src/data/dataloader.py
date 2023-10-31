@@ -6,8 +6,12 @@ from PIL import Image
 import pandas as pd
 import matplotlib.pyplot as plt
 import torchvision.transforms as T
-from torch.utils.data import DataLoader
-from tokenization import yield_tokens_title, yield_tokens_title_and_ingredients, yield_tokens_title_and_ingredients_and_instructions, get_vocab, datapipe, collate_batch
+from torch.utils.data import DataLoader, Dataset
+from tokenization import yield_tokens_title, yield_tokens_title_and_ingredients, yield_tokens_title_and_ingredients_and_instructions, get_vocab, datapipe, collate_batch, parse_list_column
+from torchdata.datapipes.iter import FileOpener, IterableWrapper
+from torchtext.data.utils import get_tokenizer
+from torch.nn.utils.rnn import pad_sequence
+
 
 NUM_CLS = 2
 VOCAB_SIZE = 50_000
@@ -32,7 +36,7 @@ def set_seed(seed=1):
 def denormalize(tensor):
     return tensor * 0.225 + 0.45
 
-class ImageDataset(DataLoader):
+class ImageDataset(Dataset):
     def __init__(self):
         self.path = 'data/processed/Food Images'
         self.image_files = os.listdir(self.path)
@@ -52,7 +56,7 @@ class ImageDataset(DataLoader):
         image = self.transform(image)
         return image
 
-class ContrastiveImageDataset(DataLoader):
+class ContrastiveImageDataset(Dataset):
     def __init__(self):
         self.path = 'data/processed/Food Images'
         self.image_files = os.listdir(self.path)
@@ -78,7 +82,7 @@ class ContrastiveImageDataset(DataLoader):
         contrast_img = Image.open(contrast_img)
         return self.transform(image), self.transform(contrast_img)
     
-class TextDataSet(DataLoader):
+class TextDataSet(Dataset):
     '''returns: Image_Name, title, ingredients, instructions'''
     def __init__(self):
         FILE_PATH = 'data/Food Ingredients and Recipe Dataset with Image Name Mapping.csv'
@@ -99,7 +103,7 @@ class TextDataSet(DataLoader):
         title, ingredients, instructions = self.tokenize(Recipe_title), self.tokenize(ingredients), self.tokenize(instructions)
         return Image_Name, title, ingredients, instructions
     
-class CombinedDataLoader(DataLoader):
+class CombinedDataSet(Dataset):
     '''
     image, text, positive/negative pair (Bool)
     positive pair = the image matches the text
@@ -108,20 +112,50 @@ class CombinedDataLoader(DataLoader):
     test set should not have negative pairs
     '''
     
-    def __init__(self, batch_size=8, p=0.2, mode='train'):
-        self.text_loader = DataLoader(list(datapipe),
-                              batch_size=batch_size,
-                              shuffle=True,
-                              collate_fn=collate_batch)
+    def __init__(self, batch_size=8, p=0.2, mode='train', text=['title']):
+        if text == ['title']:
+            self.yield_tokens = yield_tokens_title
+        elif text == ['title', 'ingredients']:
+            self.yield_tokens = yield_tokens_title_and_ingredients
+        elif text == ['title', 'ingredients', 'instructions']:
+            self.yield_tokens = yield_tokens_title_and_ingredients_and_instructions
         
-        self.image_loader = ImageDataset()
+        self.path = 'data/processed/Food Images'
+        self.image_files = os.listdir(self.path)
+        self.transform = T.Compose([
+            T.Resize((224, 224)),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406], 
+                        std=[0.229, 0.224, 0.225])
+        ])
         self.p = p
 
+        FILE_PATH = 'data/Food Ingredients and Recipe Dataset with Image Name Mapping.csv'
+
+        self.datapipe = IterableWrapper([FILE_PATH])
+        self.datapipe = FileOpener(datapipe, mode='b')
+        self.datapipe = datapipe.parse_csv(skip_lines=1, delimiter=',', quotechar='"', quoting=1)
+        self.datapipe = datapipe.map(parse_list_column)
+
+        self.tokenizer = get_tokenizer('basic_english')
+        self.vocab = get_vocab(datapipe, self.yield_tokens)
+
+        self.text_transform = lambda x: [self.vocab['']] + [self.vocab[token] for token in self.tokenizer(x)] + [self.vocab['']]
+
+
     def __len__(self):
-        return len(self.text_loader)
+        return len(self.image_files)
     
     def __getitem__(self, idx):
-        text = self.text_loader[idx]
+        image_path = os.path.join(self.path, self.image_files[idx])
+        image = Image.open(image_path)
+        image = self.transform(image)
+
+        _text = self.datapipe[idx]
+        text = _text[1]
+        label = int(_text[0])
+        processed_text = torch.tensor(self.text_transform(text))
+
         if random.random() < self.p:
             image = self.image_loader[idx]
             is_pos_pair = True
@@ -129,6 +163,9 @@ class CombinedDataLoader(DataLoader):
             idx =  torch.randint(0,len(self.text_loader),(1,)).item()
             image = self.image_loader[idx]
             is_pos_pair = False
+
+        label, text = torch.tensor(label), pad_sequence(processed_text, padding_value=3.0)
+
         return image, text, is_pos_pair
 
     
@@ -162,8 +199,8 @@ def main(batch_size=3):
     #     print(instructions)
     #     break
 
-    data_loader = CombinedDataLoader(batch_size=batch_size, p=0.2, mode='train')
-    data_loader = DataLoader(data_loader, batch_size=batch_size, shuffle=True)
+    data_set = CombinedDataSet(batch_size=batch_size, p=0.2, mode='train')
+    data_loader = DataLoader(data_set, batch_size=batch_size, shuffle=True)
     fig, ax = plt.subplots(1,2, figsize=(14, 5))
     for img, text, is_positive in data_loader:
         ax[0].imshow(denormalize(img[0].permute(1,2,0)))

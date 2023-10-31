@@ -56,4 +56,4 @@ def get_text_encoder(embed_dim=512, num_heads=8, num_layers=6, pos_enc='fixed', 
 
 
 if __name__ == '__main__':
-    get_text_encoder(text=['title', 'ingredients', 'instructions'])
+    get_text_encoder()
