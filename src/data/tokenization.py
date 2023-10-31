@@ -6,22 +6,41 @@ from torch.utils.data import DataLoader, Sampler
 from torchdata.datapipes.iter import FileOpener, IterableWrapper
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
+import ast
 
 # https://github.com/andrei-radulescu-banu/stat453-deep-learning-ss21/blob/main/L15/migration_tutorial.ipynb
+
+
+def parse_list_column(row):
+    row[2] = ast.literal_eval(row[2])
+    row[5] = ast.literal_eval(row[5])
+    return row
 
 FILE_PATH = 'data/Food Ingredients and Recipe Dataset with Image Name Mapping.csv'
 
 datapipe = IterableWrapper([FILE_PATH])
 datapipe = FileOpener(datapipe, mode='b')
-datapipe = datapipe.parse_csv(skip_lines=1)
+datapipe = datapipe.parse_csv(skip_lines=1, delimiter=',', quotechar='"', quoting=1)
+datapipe = datapipe.map(parse_list_column)
 
 tokenizer = get_tokenizer('basic_english')
 
-def yield_tokens(data_iter):
-    for _, Title, Ingredients, Instructions, Image_Name, Cleaned_Ingredients in data_iter:
-        yield tokenizer(Title)  # , tokenizer(Ingredients), tokenizer(Instructions), tokenizer(Image_Name), tokenizer(Cleaned_Ingredients)
+def yield_tokens_title(data_iter):
+    for idx, Title, Ingredients, Instructions, Image_Name, Cleaned_Ingredients in data_iter:
+        yield tokenizer(Title)
+        
+def yield_tokens_title_and_ingredients(data_iter):
+    for idx, Title, Ingredients, Instructions, Image_Name, Cleaned_Ingredients in data_iter:
+        a = Title + ' ' + ' '.join(str(e) for e in Cleaned_Ingredients)
+        yield tokenizer(a)
 
-def get_vocab(train_datapipe):
+def yield_tokens_title_and_ingredients_and_instructions(data_iter):
+    for idx, Title, Ingredients, Instructions, Image_Name, Cleaned_Ingredients in data_iter:
+        a = Title + ' ' + ' '.join(str(e) for e in Cleaned_Ingredients)
+        b = a + ' ' + Instructions
+        yield tokenizer(b)
+
+def get_vocab(train_datapipe, yield_tokens):
     # TODO: we might not need the special tokens
     vocab = build_vocab_from_iterator(yield_tokens(train_datapipe),
                                       specials=['<UNK>', '<PAD>'],
@@ -29,9 +48,9 @@ def get_vocab(train_datapipe):
     vocab.set_default_index(vocab['<UNK>'])
     return vocab
 
-vocab = get_vocab(datapipe)
+vocab = get_vocab(datapipe, yield_tokens_title_and_ingredients_and_instructions)
 
-def collate_batch(batch):
+def collate_batch(batch, vocab=vocab):
     label_list, text_list = [], []
     text_transform = lambda x: [vocab['']] + [vocab[token] for token in tokenizer(x)] + [vocab['']]
 

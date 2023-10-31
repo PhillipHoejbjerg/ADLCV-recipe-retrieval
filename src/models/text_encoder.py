@@ -117,7 +117,7 @@ class PositionalEmbedding(nn.Module):
         return x
         
 
-class TransformerEmbedder(nn.Module):
+class TransformerTextEmbedder(nn.Module):
     def __init__(self, embed_dim, num_heads, num_layers, max_seq_len,
                  pos_enc='fixed', pool='cls', dropout=0.0, 
                  fc_dim=None, num_tokens=50_000, embed_dim_out=64, 
@@ -125,7 +125,7 @@ class TransformerEmbedder(nn.Module):
     ):
         super().__init__()
 
-        assert pool in ['cls', 'mean', 'max']
+        assert pool in ['mean', 'max']
         assert pos_enc in ['fixed', 'learnable']
         
 
@@ -169,7 +169,7 @@ def main(embed_dim=128, num_heads=4, num_layers=4, pos_enc='fixed', pool='max', 
     VOCAB_SIZE = 50_000
     SAMPLED_RATIO = 0.2
     MAX_SEQ_LEN = 512
-    model = TransformerEmbedder(embed_dim=embed_dim, 
+    model = TransformerTextEmbedder(embed_dim=embed_dim, 
                                 num_heads=num_heads, 
                                 num_layers=num_layers,
                                 pos_enc=pos_enc,
