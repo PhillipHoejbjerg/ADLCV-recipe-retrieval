@@ -78,6 +78,7 @@ class ContrastiveImageDataset(torch.utils.data.DataLoader):
         return self.transform(image), self.transform(contrast_img)
     
 class TextDataSet(torch.utils.data.DataLoader):
+    '''returns: Image_Name, title, ingredients, instructions'''
     def __init__(self):
         FILE_PATH = 'data/Food Ingredients and Recipe Dataset with Image Name Mapping.csv'
         self.csv = pd.read_csv(FILE_PATH)
@@ -93,8 +94,9 @@ class TextDataSet(torch.utils.data.DataLoader):
         Image_Name = text.Image_Name
         Recipe_title = text.Title
         ingredients = text.Cleaned_Ingredients
-        tokens = self.tokenize(Recipe_title)
-        return tokens, Image_Name
+        instructions = text.Instructions
+        title, ingredients, instructions = self.tokenize(Recipe_title), self.tokenize(ingredients), self.tokenize(instructions)
+        return Image_Name, title, ingredients, instructions
     
 def collate_fn(batch):
     tokens, Image_Name = zip(*batch)
