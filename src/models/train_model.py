@@ -1,12 +1,14 @@
 import torch
 import torch.nn as nn
 import lightning as L
-from lightning.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint
 from torch.utils.data import DataLoader, Dataset
 from torchmetrics.functional import pairwise_cosine_similarity
 from torchmetrics import Accuracy
 from lightning.pytorch.loggers import TensorBoardLogger
 import argparse
+
+from src.models.ImageEncoder import get_image_encoder
 
 class RecipeRetrievalLightningModule(L.LightningModule):
     def __init__(self, 
@@ -36,7 +38,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         self.embedding_dim = embedding_dim
 
         # Mapping the output of the encoders to the embedding space
-        self.W_R   = nn.Linear(R_encoder.output_dim, self.embedding_dim)
+        self.W_R   = nn.Linear(R_encoder.output_dim,   self.embedding_dim)
         self.W_img = nn.Linear(img_encoder.output_dim, self.embedding_dim)  
 
         # Accuracy
@@ -155,15 +157,22 @@ if __name__ == "__main__":
     parser.add_argument('--max_steps', type=int, default=1000, help='max steps - default 1000')
     parser.add_argument('--margin', type=float, default=0.5, help='margin (for loss function) - default 0.5')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate - default 0.001')
+    parser.add_argument('--experiment_name', type=str, default="test", help='Experiment name - default test')
+    parser.add_argument('--img_encoder_name', type=str, default="resnet", help='Model name - default resnet')
+
 
     args = parser.parse_args()
+
+    # get device
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Initializing tensorboard logger
     tb_logger = TensorBoardLogger(save_dir = "tensorboard_logs", name=args.experiment_name)
 
     # Initializing the image encoder
-    img_encoder = get_image_encoder("resnet")
+    img_encoder = get_image_encoder(args.img_encoder_name, device, embed_dim = args.embedding_dim)
 
+    """
     # TODO: Recipe encoder should contain the concatenation technique within as well
     R_encoder   = get_text_encoder() #default
 
@@ -195,3 +204,4 @@ if __name__ == "__main__":
 
     # Testing model
     trainer.test(model = model)
+    """
