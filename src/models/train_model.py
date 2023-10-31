@@ -1,7 +1,9 @@
 import os, torch, torch.nn as nn, torch.utils.data as data, torchvision as tv
 import lightning as L
+from pretrained_models import get_image_encoder, IngredientsEncoder
 
 MARGIN = 0.1
+model_type = 'resnet50'
 
 class RecipeRetrieval(L.LightningModule):
     def __init__(self, img_encoder, R_encoder, loss_function):
@@ -27,8 +29,10 @@ class RecipeRetrieval(L.LightningModule):
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-3)
     
-img_encoder = None
-R_encoder = None    
+# Loading    
+img_encoder = get_image_encoder(model_type)
+R_encoder   = 
+
 loss_function = torch.nn.CosineEmbeddingLoss(margin = MARGIN, reduction='none')
 
 trainer = L.Trainer(max_steps=1000)
