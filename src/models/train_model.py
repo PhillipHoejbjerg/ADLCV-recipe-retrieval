@@ -7,18 +7,19 @@ from torchmetrics.functional import pairwise_cosine_similarity
 from torchmetrics import Accuracy
 from lightning.pytorch.loggers import TensorBoardLogger
 import argparse
+from src.data.dataloader import get_dataloader
 
 from src.models.ImageEncoder import get_image_encoder
-# from src.models.text_encoder import get_text_encoder # TODO: Does not exist yet
+from src.models.text_encoder import get_text_encoder # TODO: Does not exist yet
 from src.utils import get_loss_fn
 
 class RecipeRetrievalLightningModule(L.LightningModule):
     def __init__(self, 
                  img_encoder, 
                  R_encoder, 
-                 train_dataset, 
-                 val_dataset, 
-                 test_dataset,
+                 train_dataloader, 
+                 val_dataloader, 
+                 test_dataloader,
                  loss_fn, 
                  lr = 0.001,
                  batch_size = 64,
@@ -27,12 +28,12 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         super(RecipeRetrievalLightningModule, self).__init__()
         self.save_hyperparameters()
 
-        self.loss_function = loss_fn
-        self.img_encoder = img_encoder
-        self.R_encoder = R_encoder
-        self.train_dataset = train_dataset
-        self.val_dataset = val_dataset
-        self.test_dataset = test_dataset # TODO: IMPORTANT test dataloader should not have negative pairs!
+        self.loss_function     = loss_fn
+        self.img_encoder       = img_encoder
+        self.R_encoder         = R_encoder
+        self.train_dataloader  = train_dataloader
+        self.val_dataloader    = val_dataloader
+        self.test_dataloader   = test_dataloader # TODO: IMPORTANT test dataloader should not have negative pairs!
 
         # hyperparameters
         self.lr = lr
@@ -44,7 +45,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         self.W_img = nn.Linear(img_encoder.output_dim, self.embedding_dim)  
 
         # Accuracy
-        self.accuracy = Accuracy(task="multiclass", num_classes=len(self.test_dataset)) 
+        self.accuracy = Accuracy(task="multiclass", num_classes=len(self.test_dataloader)) 
 
     def forward(self, img, R):
         
@@ -162,6 +163,14 @@ if __name__ == "__main__":
     parser.add_argument('--experiment_name', type=str, default="test", help='Experiment name - default test')
     parser.add_argument('--img_encoder_name', type=str, default="resnet", help='Model name - default resnet')
     parser.add_argument('--loss_fn', type=str, default="cosine", help='Loss_fn - default cosine')
+    parser.add_argument('--p', type=float, default=0.8, help='probability of negative pair - default 0.8')
+    parser.add_argument("--text_mode", action="extend", nargs="+", type=str, default=['title'], help="text mode - default title")
+    parser.add_argument('--num_heads', type=int, default=4, help='number of heads - default 4')
+    parser.add_argument('--num_layers', type=int, default=4, help='number of layers - default 4')
+    parser.add_argument('--pos_enc', type=str, default='fixed', help='positional encoding - default fixed')
+    parser.add_argument('--pool', type=str, default='max', help='pooling - default max')
+    parser.add_argument('--dropout', type=float, default=0.0, help='probability of dropout - default 0.0')
+
 
     args = parser.parse_args()
 
@@ -172,25 +181,29 @@ if __name__ == "__main__":
     tb_logger = TensorBoardLogger(save_dir = "tensorboard_logs", name=args.experiment_name)
 
     # Initializing the image encoder
-    img_encoder = get_image_encoder(args, device)
+    img_encoder      = get_image_encoder(args, device)
 
     # TODO: Recipe encoder should contain the concatenation technique within as well
-    R_encoder   = get_text_encoder() #default
+    R_encoder        = get_text_encoder(args)
 
-    train_dataset = None
-    val_dataset = None
+    train_dataloader = get_dataloader(args, mode = 'train')
+    val_dataloader   = get_dataloader(args, mode = 'val')
+    test_dataloader  = get_dataloader(args, mode = 'test')
 
     # Defining loss function
-    loss_fn = get_loss_fn(args) # torch.nn.CosineEmbeddingLoss(margin = args.margin, reduction='none')
+    loss_fn = get_loss_fn(args)
 
     # Defining model
     model = RecipeRetrievalLightningModule(img_encoder, 
                                             R_encoder, 
-                                            train_dataset, 
-                                            val_dataset, 
+                                            train_dataloader, 
+                                            val_dataloader, 
+                                            test_dataloader,
                                             loss_fn, 
+                                            lr = args.lr,
                                             batch_size = args.batch_size,
                                             embedding_dim = args.embedding_dim)
+    
 
     # Defining callbacks
     checkpoint_callback = ModelCheckpoint(monitor='val_loss')

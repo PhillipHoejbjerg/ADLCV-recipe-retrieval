@@ -144,6 +144,7 @@ class TransformerTextEmbedder(nn.Module):
 
         self.transformer_blocks = nn.Sequential(*transformer_blocks)
         self.embedder = nn.Linear(embed_dim, embed_dim_out)
+        self.output_dim = embed_dim_out
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x, exp=False):
@@ -191,6 +192,27 @@ def main(embed_dim=128, num_heads=4, num_layers=4, pos_enc='fixed', pool='max', 
     dummy_output = model(dummy_input)
     print(dummy_output.shape)
     print(dummy_output)
+
+def get_text_encoder(args, VOCAB_SIZE=50_000, SAMPLED_RATIO=0.2, MAX_SEQ_LEN=512):
+
+    model = TransformerTextEmbedder(embed_dim=args.embedding_dim, 
+                            num_heads=args.num_heads, 
+                            num_layers=args.num_layers,
+                            pos_enc=args.pos_enc,
+                            pool=args.pool,  
+                            dropout=args.dropout,
+                            fc_dim=None,
+                            max_seq_len=MAX_SEQ_LEN, 
+                            num_tokens=VOCAB_SIZE, 
+                            embed_dim_out=args.embedding_dim,
+                            )
+    
+    if torch.cuda.is_available():
+        model = model.to('cuda')
+    
+    return model
+
+
 
 if __name__ == '__main__':
     main()

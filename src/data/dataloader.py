@@ -7,7 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import torchvision.transforms as T
 from torch.utils.data import DataLoader, Dataset
-from tokenization import yield_tokens_title, yield_tokens_title_and_ingredients, yield_tokens_title_and_ingredients_and_instructions, get_vocab
+from src.data.tokenization import yield_tokens_title, yield_tokens_title_and_ingredients, yield_tokens_title_and_ingredients_and_instructions, get_vocab
 from torchdata.datapipes.iter import FileOpener, IterableWrapper
 from torchtext.data.utils import get_tokenizer
 from torch.nn.utils.rnn import pad_sequence
@@ -165,6 +165,12 @@ def main(batch_size=2):
 
         plt.show()
         break
+
+def get_dataloader(args, mode = 'train', text_mode = ['title']):
+    data_set    = CombinedDataSet(p=0.0, mode=mode, text=text_mode) if mode == 'test' else CombinedDataSet(p=args.p, mode=mode, text=text_mode)
+    data_loader = DataLoader(data_set, batch_size=args.batch_size, shuffle=True, collate_fn=collate_batch_text)
+
+    return data_loader
 
 if __name__ == '__main__':
     main()
