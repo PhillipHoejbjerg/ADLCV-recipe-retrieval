@@ -14,4 +14,4 @@ import pandas as pd
 df = pd.read_csv('data/Food Ingredients and Recipe Dataset with Image Name Mapping.csv')
 print(f"number of invalid images: {sum(df['Image_Name'] == '#NAME?')}")
 df = df[df['Image_Name'] != '#NAME?']
-df.to_csv('data/Food Ingredients and Recipe Dataset with Image Name Mapping.csv')
+df.to_csv('data/Food Ingredients and Recipe Dataset with Image Name Mapping.csv', index=False)
