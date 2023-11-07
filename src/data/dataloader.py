@@ -53,15 +53,22 @@ class CombinedDataSet(Dataset):
     '''
     
     def __init__(self, p=0.2, mode='train', text=['title']):
-        if text == ['title']:
+        assert mode in ['train', 'test', 'val']
+        self.text_mode = text
+        if self.text_mode == ['title']:
             self.yield_tokens = yield_tokens_title
-        elif text == ['title', 'ingredients']:
+        elif self.text_mode == ['title', 'ingredients']:
             self.yield_tokens = yield_tokens_title_and_ingredients
-        elif text == ['title', 'ingredients', 'instructions']:
+        elif self.text_mode == ['title', 'ingredients', 'instructions']:
             self.yield_tokens = yield_tokens_title_and_ingredients_and_instructions
-        
+
         self.path = 'data/processed/Food Images'
-        self.image_files = os.listdir(self.path)
+        self.image_paths = os.listdir(self.path)
+        # Compute splits sizes
+        # this assumes that the data is shuffled beforehand
+        train_size = int(0.7 * len(self.image_paths))
+        val_size = int(0.1 * len(self.image_paths))
+        
         self.transform = T.Compose([
             T.Resize((224, 224)),
             T.ToTensor(),
@@ -82,10 +89,19 @@ class CombinedDataSet(Dataset):
 
         self.text_transform = lambda x: [self.vocab['']] + [self.vocab[token] for token in self.tokenizer(x)] + [self.vocab['']]
         self.csv = pd.read_csv(FILE_PATH)
+        # Get dataset split
+        # Since the text data set is used to load a corresponding image, we just select on the csv
+        if mode == 'train':
+            self.csv = self.csv.iloc[:train_size, :]
+        elif mode == 'val':
+            self.csv = self.csv.iloc[train_size:train_size+val_size, :]
+        elif mode == 'test':
+            self.csv = self.csv.iloc[train_size+val_size:, :]
+            self.p = 0
         self.csv.apply(parse_list_column, axis=1)
 
     def __len__(self):
-        return len(self.image_files)
+        return len(self.csv)
     
     def __getitem__(self, idx):
         
@@ -96,7 +112,12 @@ class CombinedDataSet(Dataset):
             idx =  torch.randint(0,self.__len__(),(1,)).item()
             _text = self.csv.iloc[idx]
             is_pos_pair = False
-        text = _text.Title
+        if self.text_mode == ['title']:
+            text = _text.Title
+        elif self.text_mode == ['title', 'ingredients']:
+            text = _text.Title + ' ' + ' '.join(str(e) for e in _text.Cleaned_Ingredients)
+        elif self.text_mode == ['title', 'ingredients', 'instructions']:
+            text = _text.Title + ' ' + ' '.join(str(e) for e in _text.Cleaned_Ingredients) + ' ' + _text.Instructions
         processed_text = torch.tensor(self.text_transform(text))
 
         image_path = 'data/processed/Food Images/' + _text.Image_Name + '.jpg'
@@ -118,6 +139,20 @@ def collate_batch_text(batch):
 def main(batch_size=2):
 
     data_set = CombinedDataSet(p=0.2, mode='train')
+    data_loader = DataLoader(data_set, batch_size=batch_size, shuffle=True, collate_fn=collate_batch_text)
+    fig, ax = plt.subplots(1,2, figsize=(14, 5))
+    for img, text, is_positive in data_loader:
+        print(text)
+        for i in range(batch_size):
+            title = data_set.vocab.lookup_tokens(list(text[i]))
+            ax[i].imshow(denormalize(img[i].permute(1,2,0)))
+            ax[i].set_title(' '.join(title))
+        print(is_positive)
+
+        plt.show()
+        break
+
+    data_set = CombinedDataSet(p=0.2, mode='test', text=['title', 'ingredients'])
     data_loader = DataLoader(data_set, batch_size=batch_size, shuffle=True, collate_fn=collate_batch_text)
     fig, ax = plt.subplots(1,2, figsize=(14, 5))
     for img, text, is_positive in data_loader:
