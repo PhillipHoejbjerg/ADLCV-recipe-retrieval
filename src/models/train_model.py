@@ -9,6 +9,8 @@ from lightning.pytorch.loggers import TensorBoardLogger
 import argparse
 
 from src.models.ImageEncoder import get_image_encoder
+# from src.models.text_encoder import get_text_encoder # TODO: Does not exist yet
+from src.utils import get_loss_fn
 
 class RecipeRetrievalLightningModule(L.LightningModule):
     def __init__(self, 
@@ -159,7 +161,7 @@ if __name__ == "__main__":
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate - default 0.001')
     parser.add_argument('--experiment_name', type=str, default="test", help='Experiment name - default test')
     parser.add_argument('--img_encoder_name', type=str, default="resnet", help='Model name - default resnet')
-
+    parser.add_argument('--loss_fn', type=str, default="cosine", help='Loss_fn - default cosine')
 
     args = parser.parse_args()
 
@@ -170,9 +172,8 @@ if __name__ == "__main__":
     tb_logger = TensorBoardLogger(save_dir = "tensorboard_logs", name=args.experiment_name)
 
     # Initializing the image encoder
-    img_encoder = get_image_encoder(args.img_encoder_name, device, embed_dim = args.embedding_dim)
+    img_encoder = get_image_encoder(args, device)
 
-    """
     # TODO: Recipe encoder should contain the concatenation technique within as well
     R_encoder   = get_text_encoder() #default
 
@@ -180,7 +181,7 @@ if __name__ == "__main__":
     val_dataset = None
 
     # Defining loss function
-    loss_fn = torch.nn.CosineEmbeddingLoss(margin = args.margin, reduction='none')
+    loss_fn = get_loss_fn(args) # torch.nn.CosineEmbeddingLoss(margin = args.margin, reduction='none')
 
     # Defining model
     model = RecipeRetrievalLightningModule(img_encoder, 
@@ -204,4 +205,3 @@ if __name__ == "__main__":
 
     # Testing model
     trainer.test(model = model)
-    """
