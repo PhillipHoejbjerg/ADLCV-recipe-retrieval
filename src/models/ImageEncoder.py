@@ -15,7 +15,7 @@ from typing import Tuple
 from vit_blank import *
 
 
-def get_image_encoder(choice: str, device_:torch.device, embed_dim: int=512) -> nn.Module:
+def get_image_encoder(args, device_:torch.device) -> nn.Module:
 
     class ResNet50(nn.Module):
 
@@ -163,13 +163,13 @@ def get_image_encoder(choice: str, device_:torch.device, embed_dim: int=512) -> 
             return features
     
     
-    if choice == 'resnet':
-        return ResNet50(output_dim=embed_dim, device=device_)
-    elif choice == 'vit':
-        return ViT_Base(output_dim=embed_dim, device=device_)
-    elif choice == 'efficientnet':
-        return EfficientNet(output_dim=embed_dim, device=device_)
-    elif choice == 'vit_blank':
+    if args.img_encoder_name == 'resnet':
+        return ResNet50(output_dim=args.embeding_dim, device=device_)
+    elif args.img_encoder_name == 'vit':
+        return ViT_Base(output_dim=args.embeding_dim, device=device_)
+    elif args.img_encoder_name == 'efficientnet':
+        return EfficientNet(output_dim=args.embeding_dim, device=device_)
+    elif args.img_encoder_name == 'vit_blank':
         config = {
             "patch_size": 16,  # Input image size: 224x224 -> 14x14 patches
             "hidden_size": 48,
