@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *.yaml
 tensorboard_logs/
+recipe/
 
 # C extensions
 *.so

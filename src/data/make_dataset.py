@@ -8,8 +8,8 @@ import pandas as pd
 
 # kaggle.api.dataset_download_files('pes12017000148/food-ingredients-and-recipe-dataset-with-images', path='data/raw/Food Images', unzip=True)
 
-# shutil.copytree('data/raw/Food Images', 'data/processed/Food Images')
-# os.remove('data/processed/Food Images/pan-seared-salmon-on-baby-arugula-242445.jpg')
+shutil.copytree('data/raw/Food Images', 'data/processed/Food Images')
+os.remove('data/processed/Food Images/pan-seared-salmon-on-baby-arugula-242445.jpg')
 
 df = pd.read_csv('data/Food Ingredients and Recipe Dataset with Image Name Mapping.csv')
 print('len before', len(df))
