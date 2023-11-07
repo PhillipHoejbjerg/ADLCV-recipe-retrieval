@@ -20,9 +20,6 @@ def to_device(tensor=None):
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-
-
-
 def set_seed(seed=1):
     random.seed(seed)
     np.random.seed(seed)
@@ -33,7 +30,8 @@ def set_seed(seed=1):
 
 def denormalize(tensor):
     tensor = tensor * 0.225 + 0.45
-    return tensor.clamp(0, 1)
+    img = Image.fromarray(np.array(tensor.clamp(0, 1)*255,dtype=np.uint8))
+    return img.resize((274, 169))
    
 def parse_list_column(df):
     df.Cleaned_Ingredients = ast.literal_eval(df.Cleaned_Ingredients)
