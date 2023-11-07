@@ -169,6 +169,7 @@ if __name__ == "__main__":
     parser.add_argument('--p', type=float, default=0.8, help='probability of negative pair - default 0.8')
     parser.add_argument("--text_mode", action="extend", nargs="+", type=str, default=['title'], help="text mode - default title")
     parser.add_argument('--num_heads', type=int, default=4, help='number of heads - default 4')
+    parser.add_argument('--num_epochs', type=int, default=20, help='number of epochs - default 20')
     parser.add_argument('--num_layers', type=int, default=4, help='number of layers - default 4')
     parser.add_argument('--pos_enc', type=str, default='fixed', help='positional encoding - default fixed')
     parser.add_argument('--pool', type=str, default='max', help='pooling - default max')
@@ -214,7 +215,8 @@ if __name__ == "__main__":
     trainer = L.Trainer(max_steps=args.max_steps, 
                         default_root_dir="/models", # save_dir
                         callbacks=[checkpoint_callback],
-                        logger = tb_logger)
+                        logger = tb_logger,
+                        max_epochs=2)
 
     # Fitting model
     trainer.fit(model = model) # , train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
