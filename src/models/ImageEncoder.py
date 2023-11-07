@@ -111,7 +111,8 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
                 > features (torch.Tensor): (BATCH, IMAGE_EMB_DIM)
             """
             
-            features = self.vit(images) # [1, 512]
+            features = self.vit(images)
+            return features
             
     class EfficientNet(nn.Module):
         

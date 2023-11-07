@@ -150,7 +150,7 @@ def main(batch_size=2):
             ax[i].imshow(denormalize(img[i].permute(1,2,0)))
             ax[i].set_title(' '.join(title))
         print(is_positive)
-
+        plt.savefig('reports/figures/data_ex.png', dpi=300, bbox_inches='tight')
         plt.show()
         break
 
