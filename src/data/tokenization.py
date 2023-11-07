@@ -43,9 +43,9 @@ def yield_tokens_title_and_ingredients_and_instructions(data_iter):
 def get_vocab(train_datapipe, yield_tokens):
     # TODO: we might not need the special tokens
     vocab = build_vocab_from_iterator(yield_tokens(train_datapipe),
-                                      specials=['<UNK>', '<PAD>'],
+                                      specials=['<EOS>','<PAD>'],
                                       max_tokens=20000)
-    vocab.set_default_index(vocab['<UNK>'])
+    vocab.set_default_index(vocab['<EOS>'])
     return vocab
 
 vocab = get_vocab(datapipe, yield_tokens_title_and_ingredients_and_instructions)
