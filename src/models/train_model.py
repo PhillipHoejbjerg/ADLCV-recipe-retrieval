@@ -126,8 +126,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img_pred  = torch.argmax(cosine_similarities, dim = 0)
 
         # Calculating accuracy
-        R_acc   = self.accuracy(R_pred,   torch.arange(len(self.test_dataloader_)))
-        img_acc = self.accuracy(img_pred, torch.arange(len(self.test_dataloader_)))
+        R_acc   = self.accuracy(R_pred,   torch.arange(self.test_dataloader_.batch_size))
+        img_acc = self.accuracy(img_pred, torch.arange(self.test_dataloader_.batch_size))
         
         # Recall @ k + median ranking:
         # https://github.com/amzn/image-to-recipe-transformers/blob/main/src/utils/metrics.py
@@ -251,7 +251,7 @@ if __name__ == "__main__":
                         default_root_dir="/models", # save_dir
                         callbacks=[checkpoint_callback],
                         logger = tb_logger,
-                        max_epochs=2)
+                        max_epochs=args.num_epochs)
 
     # Fitting model
     trainer.fit(model = model) # , train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
