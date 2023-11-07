@@ -1,6 +1,8 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*.yaml
+tensorboard_logs/
 
 # C extensions
 *.so

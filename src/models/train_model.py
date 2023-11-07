@@ -13,6 +13,8 @@ from src.models.ImageEncoder import get_image_encoder
 from src.models.text_encoder import get_text_encoder # TODO: Does not exist yet
 from src.utils import get_loss_fn
 
+torch.set_float32_matmul_precision('high')
+
 class RecipeRetrievalLightningModule(L.LightningModule):
     def __init__(self, 
                  img_encoder, 
@@ -25,15 +27,15 @@ class RecipeRetrievalLightningModule(L.LightningModule):
                  batch_size = 64,
                  embedding_dim = 256):
         
-        super(RecipeRetrievalLightningModule, self).__init__()
-        self.save_hyperparameters()
+        super().__init__()
+        self.save_hyperparameters(ignore=['img_encoder', 'R_encoder', 'loss_fn'])
 
         self.loss_function     = loss_fn
         self.img_encoder       = img_encoder
         self.R_encoder         = R_encoder
-        self.train_dataloader  = train_dataloader
-        self.val_dataloader    = val_dataloader
-        self.test_dataloader   = test_dataloader # TODO: IMPORTANT test dataloader should not have negative pairs!
+        self.train_dataloader_  = train_dataloader
+        self.val_dataloader_    = val_dataloader
+        self.test_dataloader_   = test_dataloader # TODO: IMPORTANT test dataloader should not have negative pairs!
 
         # hyperparameters
         self.lr = lr
@@ -45,7 +47,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         self.W_img = nn.Linear(img_encoder.output_dim, self.embedding_dim)  
 
         # Accuracy
-        self.accuracy = Accuracy(task="multiclass", num_classes=len(self.test_dataloader)) 
+        self.accuracy = Accuracy(task="multiclass", num_classes=len(self.test_dataloader_)) 
 
     def forward(self, img, R):
         
@@ -62,7 +64,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # Unpacking batch
         img, R, is_pos_pair = batch
 
-        phi_img, phi_R = self(img, R)
+        phi_img, phi_R = self.forward(img, R)
 
         # Calculate loss here
         loss = self.loss_function(phi_img, phi_R, is_pos_pair)
@@ -75,21 +77,21 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         return optimizer
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True) # TODO: grab dataloader directly
+        return self.train_dataloader_ 
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False) # TODO: grab dataloader directly
+        return self.val_dataloader_ 
     
     # Entire test_set - in order to predict on entirety of test set
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=len(self.test_dataset), shuffle=False) # TODO: grab dataloader directly
+        return self.test_dataloader_ 
 
     def validation_step(self, batch, batch_idx):
         
         # Unpacking batch
         img, R, is_pos_pair = batch
 
-        phi_img, phi_R = self(img, R)
+        phi_img, phi_R = self.forward(img, R)
 
         # Calculate loss here
         loss = self.loss_function(phi_img, phi_R, is_pos_pair)

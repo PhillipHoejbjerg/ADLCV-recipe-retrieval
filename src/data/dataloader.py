@@ -134,12 +134,14 @@ def collate_fn(batch):
 def collate_batch_text(batch):
     img, processed_text, is_positive = zip(*batch)
     text = pad_sequence(processed_text, padding_value=1.0, batch_first=True)
-    return img, text, is_positive
+    img = torch.stack(img)
+    return img, text, torch.tensor(is_positive)
 
 def main(batch_size=2):
 
     data_set = CombinedDataSet(p=0.2, mode='train')
     data_loader = DataLoader(data_set, batch_size=batch_size, shuffle=True, collate_fn=collate_batch_text)
+    print(next(iter(data_loader))[0].shape)
     fig, ax = plt.subplots(1,2, figsize=(14, 5))
     for img, text, is_positive in data_loader:
         print(text)

@@ -26,7 +26,7 @@ def get_loss_fn(args):
         return ContrastiveLoss(margin = args.margin)
 
     if args.loss_fn == 'cosine':
-        return nn.CosineEmbeddingLoss(margin = args.margin, reduction='none')
+        return nn.CosineEmbeddingLoss(margin = args.margin, reduction='mean')
 
     # TODO: Figure out how to do positive pairs with no mulitples of labels    
     if args.loss_fn == 'triplet':
