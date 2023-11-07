@@ -47,7 +47,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         self.W_img = nn.Linear(img_encoder.output_dim, self.embedding_dim)  
 
         # Accuracy
-        self.accuracy = Accuracy(task="multiclass", num_classes=len(self.test_dataloader_)) # TODO: Get len from test dataset
+        self.accuracy = Accuracy(task="multiclass", num_classes=self.test_dataloader_.batch_size) # TODO: Get len from test dataset
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     parser.add_argument('--margin', type=float, default=0.5, help='margin (for loss function) - default 0.5')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate - default 0.001')
     parser.add_argument('--experiment_name', type=str, default="test", help='Experiment name - default test')
-    parser.add_argument('--img_encoder_name', type=str, default="resnet", help='Model name - default resnet')
+    parser.add_argument('--img_encoder_name', type=str, default="resnet", help='resnet, vit, efficientnet')
     parser.add_argument('--loss_fn', type=str, default="cosine", help='Loss_fn - default cosine')
     parser.add_argument('--p', type=float, default=0.8, help='probability of negative pair - default 0.8')
     parser.add_argument("--text_mode", action="extend", nargs="+", type=str, default=['title'], help="text mode - default title")
