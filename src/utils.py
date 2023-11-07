@@ -12,13 +12,13 @@ def get_loss_fn(args):
             super(ContrastiveLoss, self).__init__()
             self.margin = margin
 
-        def forward(self, output1, output2, target):
+        def forward(self, embed1, embed2, is_pos_pair):
             # Calculate cosine similarity
-            cosine_similarity = F.cosine_similarity(output1, output2)
+            cosine_similarity = F.cosine_similarity(embed1, embed2)
 
             # Calculate loss using contrastive loss formula
-            loss = 0.5 * (1 - target) * cosine_similarity**2 + \
-                0.5 * target * torch.clamp(self.margin - cosine_similarity, min=0)
+            loss = 0.5 * (1 - is_pos_pair) * cosine_similarity**2 + \
+                0.5 * is_pos_pair * torch.clamp(self.margin - cosine_similarity, min=0)
 
             return loss.mean()
         
