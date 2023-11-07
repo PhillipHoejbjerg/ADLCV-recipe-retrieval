@@ -121,7 +121,7 @@ class CombinedDataSet(Dataset):
         processed_text = torch.tensor(self.text_transform(text))
 
         image_path = 'data/processed/Food Images/' + _text.Image_Name + '.jpg'
-        image = Image.open(image_path)
+        image = Image.open(image_path).convert("RGB")
         image = self.transform(image)
 
         return image, processed_text, is_pos_pair
@@ -169,8 +169,11 @@ def main(batch_size=2):
         break
 
 def get_dataloader(args, mode = 'train', text_mode = ['title']):
-    data_set    = CombinedDataSet(p=0.0, mode=mode, text=text_mode) if mode == 'test' else CombinedDataSet(p=args.p, mode=mode, text=text_mode)
-    data_loader = DataLoader(data_set, batch_size=args.batch_size, shuffle=True, collate_fn=collate_batch_text)
+    data_set    = CombinedDataSet(p=0.0, mode=mode, text=text_mode) if mode == 'test' \
+        else CombinedDataSet(p=args.p, mode=mode, text=text_mode)
+    
+    data_loader = DataLoader(data_set, batch_size=len(data_set), shuffle=True, collate_fn=collate_batch_text) if mode == 'test' \
+        else DataLoader(data_set, batch_size=args.batch_size, shuffle=True, collate_fn=collate_batch_text)
 
     return data_loader
 

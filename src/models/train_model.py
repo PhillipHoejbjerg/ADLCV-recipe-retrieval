@@ -49,6 +49,20 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # Accuracy
         self.accuracy = Accuracy(task="multiclass", num_classes=len(self.test_dataloader_)) # TODO: Get len from test dataset
 
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+        return optimizer
+
+    def train_dataloader(self):
+        return self.train_dataloader_
+
+    def val_dataloader(self):
+        return self.val_dataloader_ 
+    
+    # Entire test_set - in order to predict on entirety of test set
+    def test_dataloader(self):
+        return self.test_dataloader_ 
+
     def forward(self, img, R):
         
         # Getting latent space representations
@@ -71,20 +85,6 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         
         self.log("train_loss", loss)
         return loss
-
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
-        return optimizer
-
-    def train_dataloader(self):
-        return self.train_dataloader_
-
-    def val_dataloader(self):
-        return self.val_dataloader_ 
-    
-    # Entire test_set - in order to predict on entirety of test set
-    def test_dataloader(self):
-        return self.test_dataloader_ 
     
     def validation_step(self, batch, batch_idx):
         
@@ -99,7 +99,6 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         
         self.log("val_loss", loss)
 
-    # TODO: Also do this for prediction
     def test_step(self, batch, batch_idx):
 
         # Unpacking batch
@@ -181,7 +180,7 @@ if __name__ == "__main__":
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Initializing tensorboard logger
-    tb_logger = TensorBoardLogger(save_dir = "tensorboard_logs", name=args.experiment_name)
+    tb_logger        = TensorBoardLogger(save_dir = "tensorboard_logs", name=args.experiment_name)
 
     # Initializing the image encoder
     img_encoder      = get_image_encoder(args, device)

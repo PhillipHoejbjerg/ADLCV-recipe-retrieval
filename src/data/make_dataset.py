@@ -1,6 +1,6 @@
 import os
 import shutil
-import kaggle
+# import kaggle
 import pandas as pd
 
 # for this to work you need to place your kaggle api key in ~/.kaggle/kaggle.json
