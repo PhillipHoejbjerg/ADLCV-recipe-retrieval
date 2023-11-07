@@ -30,9 +30,9 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         super().__init__()
         self.save_hyperparameters(ignore=['img_encoder', 'R_encoder', 'loss_fn'])
 
-        self.loss_function     = loss_fn
-        self.img_encoder       = img_encoder
-        self.R_encoder         = R_encoder
+        self.loss_function      = loss_fn
+        self.img_encoder        = img_encoder
+        self.R_encoder          = R_encoder
         self.train_dataloader_  = train_dataloader
         self.val_dataloader_    = val_dataloader
         self.test_dataloader_   = test_dataloader # TODO: IMPORTANT test dataloader should not have negative pairs!
@@ -47,7 +47,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         self.W_img = nn.Linear(img_encoder.output_dim, self.embedding_dim)  
 
         # Accuracy
-        self.accuracy = Accuracy(task="multiclass", num_classes=len(self.test_dataloader_)) 
+        self.accuracy = Accuracy(task="multiclass", num_classes=len(self.test_dataloader_)) # TODO: Get len from test dataset
 
     def forward(self, img, R):
         
@@ -77,7 +77,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         return optimizer
 
     def train_dataloader(self):
-        return self.train_dataloader_ 
+        return self.train_dataloader_
 
     def val_dataloader(self):
         return self.val_dataloader_ 
@@ -85,15 +85,16 @@ class RecipeRetrievalLightningModule(L.LightningModule):
     # Entire test_set - in order to predict on entirety of test set
     def test_dataloader(self):
         return self.test_dataloader_ 
-
+    
     def validation_step(self, batch, batch_idx):
         
         # Unpacking batch
         img, R, is_pos_pair = batch
 
-        phi_img, phi_R = self.forward(img, R)
+        # Getting latent space representations
+        phi_img, phi_R = self(img, R)
 
-        # Calculate loss here
+        # Calculate loss
         loss = self.loss_function(phi_img, phi_R, is_pos_pair)
         
         self.log("val_loss", loss)
@@ -122,8 +123,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img_pred  = torch.argmax(cosine_similarities, dim = 0)
 
         # Calculating accuracy
-        R_acc   = self.accuracy(R_pred,   torch.arange(len(self.test_dataset)))
-        img_acc = self.accuracy(img_pred, torch.arange(len(self.test_dataset)))
+        R_acc   = self.accuracy(R_pred,   torch.arange(len(self.test_dataloader_)))
+        img_acc = self.accuracy(img_pred, torch.arange(len(self.test_dataloader_)))
 
         # Logging metrics
         metrics = {"img_acc": img_acc, "R_acc": R_acc}
@@ -216,7 +217,7 @@ if __name__ == "__main__":
                         logger = tb_logger)
 
     # Fitting model
-    trainer.fit(model = model)
+    trainer.fit(model = model) # , train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
 
     # Testing model
     trainer.test(model = model)
