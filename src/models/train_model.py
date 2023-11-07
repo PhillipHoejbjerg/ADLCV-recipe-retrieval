@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import torch.nn as nn
 import lightning as L
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -99,7 +100,10 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         
         self.log("val_loss", loss)
 
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch, batch_idx, recall_klist=(1, 5, 10)):
+        assert len(recall_klist) > 0, "recall_klist cannot be empty"
+        # largest k to compute recall
+        max_k = int(max(recall_klist))
 
         # Unpacking batch
         img, R, _ = batch # TODO: IMPORTANT test dataloader should not have negative pairs!
@@ -124,9 +128,41 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # Calculating accuracy
         R_acc   = self.accuracy(R_pred,   torch.arange(len(self.test_dataloader_)))
         img_acc = self.accuracy(img_pred, torch.arange(len(self.test_dataloader_)))
+        
+        # Recall @ k + median ranking:
+        # https://github.com/amzn/image-to-recipe-transformers/blob/main/src/utils/metrics.py
+        
+        # find the number of elements in the ranking that have a lower distance
+        # than the positive element (whose distance is in the diagonal
+        # of the distance matrix) wrt the query. this gives the rank for each
+        # query. (+1 for 1-based indexing)
+        positions = np.count_nonzero(cosine_similarities < np.diag(cosine_similarities)[:, None], axis=-1) + 1
+
+        # get the topk elements for each query (topk elements with lower dist)
+        rankings = np.argpartition(cosine_similarities, range(max_k), axis=-1)[:, :max_k]
+
+        # positive positions for each query (inputs are assumed to be aligned)
+        positive_idxs = np.array(range(cosine_similarities.shape[0]))
+        # matrix containing a cumulative sum of topk matches for each query
+        # if cum_matches_topk[q][k] = 1, it means that the positive for query q
+        # was already found in position <=k. if not, the value at that position
+        # will be 0.
+        cum_matches_topk = np.cumsum(rankings == positive_idxs[:, None],
+                                    axis=-1)
+
+        # pre-compute all possible recall values up to k
+        recall_values = np.mean(cum_matches_topk, axis=0)
 
         # Logging metrics
-        metrics = {"img_acc": img_acc, "R_acc": R_acc}
+        metrics = {}
+        metrics['medr'] = np.median(positions)
+        
+        for index in recall_klist:
+            metrics[f'recall_{int(index)}'] = recall_values[int(index)-1]
+
+        metrics['img_acc'] = img_acc
+        metrics['R_acc'] = R_acc
+        
         self.log_dict(metrics)
 
     def predict_step(self, batch, batch_idx):
