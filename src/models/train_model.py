@@ -36,7 +36,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         self.R_encoder          = R_encoder
         self.train_dataloader_  = train_dataloader
         self.val_dataloader_    = val_dataloader
-        self.test_dataloader_   = test_dataloader # TODO: IMPORTANT test dataloader should not have negative pairs!
+        self.test_dataloader_   = test_dataloader
+        self.device             = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         # hyperparameters
         self.lr = lr
@@ -48,7 +49,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         self.W_img = nn.Linear(img_encoder.output_dim, self.embedding_dim)  
 
         # Accuracy
-        self.accuracy = Accuracy(task="multiclass", num_classes=self.test_dataloader_.batch_size) # TODO: Get len from test dataset
+        self.accuracy = Accuracy(task="multiclass", num_classes=self.test_dataloader_.batch_size) 
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
@@ -126,8 +127,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img_pred  = torch.argmax(cosine_similarities, dim = 0)
 
         # Calculating accuracy
-        R_acc   = self.accuracy(R_pred,   torch.arange(self.test_dataloader_.batch_size))
-        img_acc = self.accuracy(img_pred, torch.arange(self.test_dataloader_.batch_size))
+        R_acc   = self.accuracy(R_pred,   torch.arange(self.test_dataloader_.batch_size).to(self.device))
+        img_acc = self.accuracy(img_pred, torch.arange(self.test_dataloader_.batch_size).to(self.device))
         
         # Recall @ k + median ranking:
         # https://github.com/amzn/image-to-recipe-transformers/blob/main/src/utils/metrics.py
