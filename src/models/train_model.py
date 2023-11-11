@@ -103,6 +103,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
 
     def test_step(self, batch, batch_idx, recall_klist=(1, 5, 10)):
         assert len(recall_klist) > 0, "recall_klist cannot be empty"
+        metrics = {}
         # largest k to compute recall
         max_k = int(max(recall_klist))
 
@@ -129,6 +130,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # Calculating accuracy
         R_acc   = self.accuracy(R_pred,   torch.arange(self.test_dataloader_.batch_size).to(self.device_))
         img_acc = self.accuracy(img_pred, torch.arange(self.test_dataloader_.batch_size).to(self.device_))
+        metrics['R_acc'] = R_acc
+        metrics['img_acc'] = img_acc
         
         # Recall @ k + median ranking:
         # https://github.com/amzn/image-to-recipe-transformers/blob/main/src/utils/metrics.py
@@ -137,6 +140,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # than the positive element (whose distance is in the diagonal
         # of the distance matrix) wrt the query. this gives the rank for each
         # query. (+1 for 1-based indexing)
+        cosine_similarities = cosine_similarities.cpu().numpy()
         positions = np.count_nonzero(cosine_similarities < np.diag(cosine_similarities)[:, None], axis=-1) + 1
 
         # get the topk elements for each query (topk elements with lower dist)
@@ -155,14 +159,10 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         recall_values = np.mean(cum_matches_topk, axis=0)
 
         # Logging metrics
-        metrics = {}
         metrics['medr'] = np.median(positions)
         
         for index in recall_klist:
             metrics[f'recall_{int(index)}'] = recall_values[int(index)-1]
-
-        metrics['img_acc'] = img_acc
-        metrics['R_acc'] = R_acc
         
         self.log_dict(metrics)
 
@@ -196,7 +196,6 @@ if __name__ == "__main__":
     
     parser.add_argument('--batch_size',    type=int, default=64, help='batch size - default 64')
     parser.add_argument('--embedding_dim', type=int, default=256, help='embedding dim - default 256')
-    parser.add_argument('--max_steps', type=int, default=1000, help='max steps - default 1000')
     parser.add_argument('--margin', type=float, default=0.5, help='margin (for loss function) - default 0.5')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate - default 0.001')
     parser.add_argument('--experiment_name', type=str, default="test", help='Experiment name - default test')
@@ -248,8 +247,7 @@ if __name__ == "__main__":
     # Defining callbacks
     checkpoint_callback = ModelCheckpoint(monitor='val_loss')
 
-    trainer = L.Trainer(max_steps=args.max_steps, 
-                        default_root_dir="/models", # save_dir
+    trainer = L.Trainer(default_root_dir="/models", # save_dir
                         callbacks=[checkpoint_callback],
                         logger = tb_logger,
                         max_epochs=args.num_epochs)
