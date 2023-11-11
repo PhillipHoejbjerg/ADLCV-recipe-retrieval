@@ -170,15 +170,17 @@ def main(batch_size=2):
 
 def get_dataloader(args, mode = 'train', text_mode = ['title']):
 
-    # Dictionary of parameters for each mode
-    mode_dict = {'train': {'p': args.p, 'batch_size': args.batch_size, 'shuffle': True},
-                 'val':   {'p': args.p, 'batch_size': args.batch_size, 'shuffle': False},
-                 'test':  {'p': 0.0,    'batch_size': len(data_set),   'shuffle': False}}
+    data_set  = CombinedDataSet(p=0.0, mode=mode, text=text_mode) if mode == 'test' else CombinedDataSet(p=args.p, mode=mode, text=text_mode)
 
-    data_set    = CombinedDataSet(p=mode_dict[mode]['p'], mode=mode, text=text_mode)
+    # Dictionary of parameters for each mode
+    mode_dict = {'train': {'batch_size': args.batch_size, 'shuffle': True},
+                 'val':   {'batch_size': args.batch_size, 'shuffle': False},
+                 'test':  {'batch_size': len(data_set),   'shuffle': False}}
+
     data_loader = DataLoader(data_set, batch_size=mode_dict[mode]['batch_size'], shuffle=mode_dict[mode]['shuffle'], collate_fn=collate_batch_text)
 
     return data_loader
 
 if __name__ == '__main__':
+    
     main()
