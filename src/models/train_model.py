@@ -37,7 +37,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         self.train_dataloader_  = train_dataloader
         self.val_dataloader_    = val_dataloader
         self.test_dataloader_   = test_dataloader
-        self.device             = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device_             = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         # hyperparameters
         self.lr = lr
@@ -127,8 +127,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img_pred  = torch.argmax(cosine_similarities, dim = 0)
 
         # Calculating accuracy
-        R_acc   = self.accuracy(R_pred,   torch.arange(self.test_dataloader_.batch_size).to(self.device))
-        img_acc = self.accuracy(img_pred, torch.arange(self.test_dataloader_.batch_size).to(self.device))
+        R_acc   = self.accuracy(R_pred,   torch.arange(self.test_dataloader_.batch_size).to(self.device_))
+        img_acc = self.accuracy(img_pred, torch.arange(self.test_dataloader_.batch_size).to(self.device_))
         
         # Recall @ k + median ranking:
         # https://github.com/amzn/image-to-recipe-transformers/blob/main/src/utils/metrics.py
