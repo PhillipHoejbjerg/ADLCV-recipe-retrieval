@@ -81,6 +81,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img, R, is_pos_pair = batch
 
         phi_img, phi_R = self.forward(img, R)
+        print("phi_img:\n", phi_img, "phi_R:\n", phi_R)
 
         # Calculate loss here
         loss = self.loss_function(phi_img, phi_R, is_pos_pair)

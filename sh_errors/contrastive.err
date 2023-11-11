@@ -1,0 +1,5 @@
+Loaded module: cuda/11.8
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/src/models/train_model.py", line 84
+    print("phi_img:\n", phi_img, "phi_R:\n", phi_R)ß
+                                                   ^^
+SyntaxError: invalid syntax

@@ -17,8 +17,8 @@ def get_loss_fn(args):
             cosine_similarity = F.cosine_similarity(embed1, embed2)
 
             # Calculate loss using contrastive loss formula
-            loss = 0.5 * (1 - is_pos_pair) * cosine_similarity**2 + \
-                0.5 * is_pos_pair * torch.clamp(self.margin - cosine_similarity, min=0)
+            loss = 0.5 * is_pos_pair.float() * cosine_similarity**2 + \
+                0.5 * (1 - is_pos_pair.float()) * torch.clamp(self.margin - cosine_similarity, min=0)**2
 
             return loss.mean()
         

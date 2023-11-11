@@ -1,0 +1,81 @@
+Loaded module: cuda/11.8
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/src/models/train_model.py", line 84
+    print("phi_img:\n", phi_img, "phi_R:\n", phi_R)ß
+                                                   ^^
+SyntaxError: invalid syntax
+Loaded module: cuda/11.8
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/utilities/parsing.py:43: attribute 'train_dataloader' removed from hparams because it cannot be pickled
+/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/utilities/parsing.py:43: attribute 'val_dataloader' removed from hparams because it cannot be pickled
+/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/utilities/parsing.py:43: attribute 'test_dataloader' removed from hparams because it cannot be pickled
+Missing logger folder: tensorboard_logs/with_print
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+
+  | Name          | Type                    | Params
+----------------------------------------------------------
+0 | loss_function | ContrastiveLoss         | 0     
+1 | img_encoder   | ResNet50                | 24.0 M
+2 | R_encoder     | TransformerTextEmbedder | 16.0 M
+3 | W_R           | Linear                  | 65.8 K
+4 | W_img         | Linear                  | 65.8 K
+5 | accuracy      | MulticlassAccuracy      | 0     
+----------------------------------------------------------
+16.7 M    Trainable params
+23.5 M    Non-trainable params
+40.2 M    Total params
+160.756   Total estimated model params size (MB)
+/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/trainer/connectors/data_connector.py:441: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=5` in the `DataLoader` to improve performance.
+Traceback (most recent call last):
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/src/models/train_model.py", line 257, in <module>
+    trainer.fit(model = model) # , train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/trainer/trainer.py", line 545, in fit
+    call._call_and_handle_interrupt(
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/trainer/call.py", line 44, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/trainer/trainer.py", line 581, in _fit_impl
+    self._run(model, ckpt_path=ckpt_path)
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/trainer/trainer.py", line 990, in _run
+    results = self._run_stage()
+              ^^^^^^^^^^^^^^^^^
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/trainer/trainer.py", line 1034, in _run_stage
+    self._run_sanity_check()
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/trainer/trainer.py", line 1063, in _run_sanity_check
+    val_loop.run()
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/loops/utilities.py", line 181, in _decorator
+    return loop_run(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/loops/evaluation_loop.py", line 134, in run
+    self._evaluation_step(batch, batch_idx, dataloader_idx, dataloader_iter)
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/loops/evaluation_loop.py", line 391, in _evaluation_step
+    output = call._call_strategy_hook(trainer, hook_name, *step_args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/trainer/call.py", line 309, in _call_strategy_hook
+    output = fn(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/strategies/strategy.py", line 403, in validation_step
+    return self.lightning_module.validation_step(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/src/models/train_model.py", line 101, in validation_step
+    loss = self.loss_function(phi_img, phi_R, is_pos_pair)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1518, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1527, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/src/utils.py", line 20, in forward
+    loss = 0.5 * (1 - is_pos_pair) * cosine_similarity**2 + \
+                  ~~^~~~~~~~~~~~~
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/torch/_tensor.py", line 40, in wrapped
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/torch/_tensor.py", line 909, in __rsub__
+    return _C._VariableFunctions.rsub(self, other)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Subtraction, the `-` operator, with a bool tensor is not supported. If you are trying to invert a mask, use the `~` or `logical_not()` operator instead.
