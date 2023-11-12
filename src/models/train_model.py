@@ -13,6 +13,7 @@ from src.data.dataloader import get_dataloader
 from src.models.ImageEncoder import get_image_encoder
 from src.models.text_encoder import get_text_encoder # TODO: Does not exist yet
 from src.utils import get_loss_fn
+from src.data.dataloader import denormalize
 
 torch.set_float32_matmul_precision('high')
 
@@ -62,6 +63,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         return self.val_dataloader_ 
     
     def predict_dataloader(self):
+        # this is technically the wrong dloader, but for testing purposes it is fine
+        # as long as args.p = 0
         return self.val_dataloader_ 
     
     # Entire test_set - in order to predict on entirety of test set
@@ -191,6 +194,12 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # first column is the first recipe wrt all images 
         # - thus argmax per column is the predicted image
         img_pred  = torch.argmax(cosine_similarities, dim = 0)
+        # use this code to get the text as string
+        print(' '.join(self.test_dataloader_.dataset.vocab.lookup_tokens(list(R[42]))))
+        # image plot
+        import matplotlib.pyplot as plt
+        plt.imshow(denormalize(img[42].permute(1,2,0).cpu()))
+        plt.show()
 
         return R_pred, img_pred
 
