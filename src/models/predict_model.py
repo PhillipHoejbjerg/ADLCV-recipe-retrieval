@@ -64,7 +64,7 @@ if __name__ == "__main__":
                                             batch_size = args.batch_size,
                                             embedding_dim = args.embedding_dim)
     
-
+    model.eval()
     # Defining callbacks
     checkpoint_callback = ModelCheckpoint(monitor='val_loss')
 

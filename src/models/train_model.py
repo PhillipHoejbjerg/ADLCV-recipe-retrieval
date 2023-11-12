@@ -29,7 +29,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
                  embedding_dim = 256):
         
         super().__init__()
-        self.save_hyperparameters(ignore=['img_encoder', 'R_encoder', 'loss_fn'])
+        self.save_hyperparameters('lr', 'batch_size', 'embedding_dim')
 
         self.loss_function      = loss_fn
         self.img_encoder        = img_encoder
@@ -84,7 +84,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img, R, is_pos_pair = batch
 
         phi_img, phi_R = self.forward(img, R)
-        print("phi_img:\n", phi_img, "phi_R:\n", phi_R)
+        # print("phi_img:\n", phi_img, "phi_R:\n", phi_R)
 
         # Calculate loss here
         loss = self.loss_function(phi_img, phi_R, is_pos_pair)
