@@ -61,6 +61,9 @@ class RecipeRetrievalLightningModule(L.LightningModule):
     def val_dataloader(self):
         return self.val_dataloader_ 
     
+    def predict_dataloader(self):
+        return self.val_dataloader_ 
+    
     # Entire test_set - in order to predict on entirety of test set
     def test_dataloader(self):
         return self.test_dataloader_ 

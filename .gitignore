@@ -4,7 +4,7 @@ __pycache__/
 *.yaml
 tensorboard_logs/
 recipe/
-
+torch/
 # C extensions
 *.so
 
