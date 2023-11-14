@@ -139,6 +139,11 @@ def collate_batch_text(batch):
     text = pad_sequence(processed_text, padding_value=1.0, batch_first=True)
     img = torch.stack(img)
     return img, text, torch.tensor(is_positive)
+    
+def collate_batch_text_roberta(batch):
+    img, processed_text, is_positive = zip(*batch)
+    img = torch.stack(img)
+    return img, list(processed_text), torch.tensor(is_positive)    
 
 def main(batch_size=2):
     # how to get raw text from dataloaders
@@ -166,26 +171,33 @@ def main(batch_size=2):
     data_loader = DataLoader(data_set, batch_size=batch_size, shuffle=True, collate_fn=collate_batch_text)
     fig, ax = plt.subplots(1,2, figsize=(14, 5))
     for img, text, is_positive in data_loader:
-        print(text)
+        # print(text)
         for i in range(batch_size):
             title = data_set.vocab.lookup_tokens(list(text[i]))
             ax[i].imshow(denormalize(img[i].permute(1,2,0)))
             ax[i].set_title(' '.join(title))
-        print(is_positive)
+        # print(is_positive)
 
         plt.show()
         break
 
 def get_dataloader(args, mode = 'train', text_mode = ['title']):
-
-    data_set  = CombinedDataSet(p=0.0, mode=mode, text=text_mode) if mode == 'test' else CombinedDataSet(p=args.p, mode=mode, text=text_mode)
+    
+    if args.text_encoder_name == 'roberta_base':
+        coll = collate_batch_text_roberta
+        yield_raw_text = True
+    else:
+        coll = collate_batch_text
+        yield_raw_text = False
+	
+    data_set  = CombinedDataSet(p=0.0, mode=mode, text=text_mode, yield_raw_text=yield_raw_text) if mode == 'test' else CombinedDataSet(p=args.p, mode=mode, text=text_mode, yield_raw_text=yield_raw_text)
 
     # Dictionary of parameters for each mode
     mode_dict = {'train': {'batch_size': args.batch_size, 'shuffle': True},
                  'val':   {'batch_size': args.batch_size, 'shuffle': False},
                  'test':  {'batch_size': len(data_set),   'shuffle': False}}
-
-    data_loader = DataLoader(data_set, batch_size=mode_dict[mode]['batch_size'], shuffle=mode_dict[mode]['shuffle'], collate_fn=collate_batch_text)
+        
+    data_loader = DataLoader(data_set, batch_size=mode_dict[mode]['batch_size'], shuffle=mode_dict[mode]['shuffle'], collate_fn=coll)
 
     return data_loader
 

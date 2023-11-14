@@ -3,7 +3,7 @@
 #BSUB -o /work3/s184984/repos/ADLCV-recipe-retrieval/sh_logs/pretrained_both.out
 #BSUB -e /work3/s184984/repos/ADLCV-recipe-retrieval/sh_errors/pretrained_both.err
 #BSUB -n 6
-#BSUB -q gpuv100
+#BSUB -q gpua100
 #BSUB -gpu 'num=1:mode=exclusive_process'
 #BSUB -W 4:00
 #BSUB -R 'rusage[mem=30GB]'

@@ -173,20 +173,20 @@ def get_text_encoder(args, device:torch.device) -> nn.Module:
             super(RobertaBase, self).__init__()
 
             self.device = device
-            self.embed_dim = embed_dim
+            self.output_dim = embed_dim
             
             self.tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
             self.model = BertModel.from_pretrained("bert-base-cased")
             for param in self.model.parameters(): 
                     param.requires_grad_(False)
                     
-            self.model.pooler = nn.Sequential(nn.Linear(768, self.embed_dim)) # TODO: Hardcoded embed_dim (CHANGE)
+            self.model.pooler = nn.Sequential(nn.Linear(768, self.output_dim)) 
             
             
-        def forward(self, x: torch.Tensor) -> torch.Tensor:
+        def forward(self, x) -> torch.Tensor:
             tokens = self.tokenizer(x, return_tensors = 'pt', padding=True)
             
-            output = self.model(**tokens)
+            output = self.model(**tokens.to(self.device))
             last_hidden_state = output.last_hidden_state[:, 0, :]
             print(output)
             output = self.model.pooler(last_hidden_state)            
