@@ -15,6 +15,10 @@ from src.models.text_encoder import get_text_encoder # TODO: Does not exist yet
 from src.utils import get_loss_fn
 from src.data.dataloader import denormalize
 
+#import os
+
+#os.chdir('C:/Users/jakob/Desktop/UniStuff/ADLCV-recipe-retrieval/src')
+
 torch.set_float32_matmul_precision('high')
 
 class RecipeRetrievalLightningModule(L.LightningModule):
@@ -46,6 +50,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         self.embedding_dim = embedding_dim
 
         # Mapping the output of the encoders to the embedding space
+        # 512 --> 256
         self.W_R   = nn.Linear(R_encoder.output_dim,   self.embedding_dim)
         self.W_img = nn.Linear(img_encoder.output_dim, self.embedding_dim)  
 
@@ -87,14 +92,14 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img, R, is_pos_pair = batch
 
         phi_img, phi_R = self.forward(img, R)
-        # print("phi_img:\n", phi_img, "phi_R:\n", phi_R)
+        print("phi_img:\n", phi_img, "phi_R:\n", phi_R)
 
         # Calculate loss here
-        if self.loss_function == 'mse':
+        if self.loss_function.__class__.__name__ == 'MSELoss':
             loss = self.loss_function(phi_img, phi_R)
         else:
             loss = self.loss_function(phi_img, phi_R, is_pos_pair)
-        
+        print(loss)
         self.log("train_loss", loss)
         return loss
     
@@ -106,9 +111,12 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # Getting latent space representations
         phi_img, phi_R = self(img, R)
 
-        # Calculate loss
-        loss = self.loss_function(phi_img, phi_R, is_pos_pair)
-        
+        # Calculate loss here
+        if self.loss_function.__class__.__name__ == 'MSELoss':
+            loss = self.loss_function(phi_img, phi_R)
+        else:
+            loss = self.loss_function(phi_img, phi_R, is_pos_pair)
+        print(loss)
         self.log("val_loss", loss)
 
     def test_step(self, batch, batch_idx, recall_klist=(1, 5, 10)):
@@ -212,6 +220,7 @@ if __name__ == "__main__":
     
     parser.add_argument('--batch_size',    type=int, default=64, help='batch size - default 64')
     parser.add_argument('--embedding_dim', type=int, default=256, help='embedding dim - default 256')
+    parser.add_argument('--full_freeze', type=bool, default=False, help='ie. head of encoder also frozen - default False')
     parser.add_argument('--margin', type=float, default=0.5, help='margin (for loss function) - default 0.5')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate - default 0.001')
     parser.add_argument('--experiment_name', type=str, default="test", help='Experiment name - default test')
