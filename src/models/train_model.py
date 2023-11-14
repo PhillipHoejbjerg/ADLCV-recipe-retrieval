@@ -82,9 +82,9 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img_z, R_z = self.img_encoder(img), self.R_encoder(R)
 
         # Mapping to embedding space
-        phi_img, phi_R = self.W_img(img_z), self.W_R(R_z)
+        # phi_img, phi_R = self.W_img(img_z), self.W_R(R_z)
         
-        return phi_img, phi_R
+        return img_z, R_z
 
     def training_step(self, batch, batch_idx):
         
