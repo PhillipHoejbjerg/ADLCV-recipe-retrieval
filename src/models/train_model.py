@@ -56,6 +56,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
 
         # Accuracy
         self.accuracy = Accuracy(task="multiclass", num_classes=self.test_dataloader_.batch_size) 
+        # To optimise each encoder separately
+        self.automatic_optimization = False
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
