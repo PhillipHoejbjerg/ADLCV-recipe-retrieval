@@ -90,7 +90,10 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # print("phi_img:\n", phi_img, "phi_R:\n", phi_R)
 
         # Calculate loss here
-        loss = self.loss_function(phi_img, phi_R, is_pos_pair)
+        if self.loss_function == 'mse':
+            loss = self.loss_function(phi_img, phi_R)
+        else:
+            loss = self.loss_function(phi_img, phi_R, is_pos_pair)
         
         self.log("train_loss", loss)
         return loss
