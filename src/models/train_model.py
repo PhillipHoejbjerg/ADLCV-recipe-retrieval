@@ -95,9 +95,11 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         print("phi_img:\n", phi_img, "phi_R:\n", phi_R)
 
         # Calculate loss here
-        loss = self.loss_function(phi_img, phi_R, is_pos_pair)
+        if self.loss_function.__class__.__name__ == 'MSELoss':
+            loss = self.loss_function(phi_img, phi_R)
+        else:
+            loss = self.loss_function(phi_img, phi_R, is_pos_pair)
         print(loss)
-        
         self.log("train_loss", loss)
         return loss
     
@@ -109,9 +111,12 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # Getting latent space representations
         phi_img, phi_R = self(img, R)
 
-        # Calculate loss
-        loss = self.loss_function(phi_img, phi_R, is_pos_pair)
-        
+        # Calculate loss here
+        if self.loss_function.__class__.__name__ == 'MSELoss':
+            loss = self.loss_function(phi_img, phi_R)
+        else:
+            loss = self.loss_function(phi_img, phi_R, is_pos_pair)
+        print(loss)
         self.log("val_loss", loss)
 
     def test_step(self, batch, batch_idx, recall_klist=(1, 5, 10)):
