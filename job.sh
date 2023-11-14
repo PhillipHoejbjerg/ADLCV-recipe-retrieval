@@ -1,7 +1,7 @@
 #!/bin/sh
-#BSUB -J with_print
-#BSUB -o /work3/s184984/repos/ADLCV-recipe-retrieval/sh_logs/with_print.out
-#BSUB -e /work3/s184984/repos/ADLCV-recipe-retrieval/sh_errors/with_print.err
+#BSUB -J mse_with_print
+#BSUB -o /work3/s184984/repos/ADLCV-recipe-retrieval/sh_logs/mse_with_print.out
+#BSUB -e /work3/s184984/repos/ADLCV-recipe-retrieval/sh_errors/mse_with_print.err
 #BSUB -n 6
 #BSUB -q gpua100
 #BSUB -gpu 'num=1:mode=exclusive_process'
@@ -16,6 +16,7 @@ module load cuda/11.8
 source /work3/s184984/repos/ADLCV-recipe-retrieval/recipe/bin/activate
 
 CUDA_VISIBLE_DEVICES=0 python src/models/train_model.py \
-    --experiment_name with_print \
+    --experiment_name mse_with_print\
     --num_epochs 100 \
-    --loss_fn contrastive
+    --loss_fn mse \
+    --p 0.0
