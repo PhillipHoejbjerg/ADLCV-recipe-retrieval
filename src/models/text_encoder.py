@@ -1,9 +1,11 @@
-
 import math
 import torch
 from torch import nn
 import torch.nn.functional as F
+from torchtext import models as textmodels
 from einops import rearrange, repeat
+from transformers import AutoTokenizer, BertTokenizer, BertModel
+import argparse
 
 def to_device(tensor=None):
     if tensor is None:
@@ -116,103 +118,163 @@ class PositionalEmbedding(nn.Module):
         x = x + self.positional_embedding[:, :seq_length]
         return x
         
-
-class TransformerTextEmbedder(nn.Module):
-    def __init__(self, embed_dim, num_heads, num_layers, max_seq_len,
-                 pos_enc='fixed', pool='cls', dropout=0.0, 
-                 fc_dim=None, num_tokens=50_000, embed_dim_out=64, 
-                 
-    ):
-        super().__init__()
-
-        assert pool in ['mean', 'max']
-        assert pos_enc in ['fixed', 'learnable']
-        
-
-        self.pool, self.pos_enc, = pool, pos_enc
-        self.token_embedding = nn.Embedding(embedding_dim=embed_dim, num_embeddings=num_tokens)
-
-        if self.pos_enc == 'fixed':
-            self.positional_encoding = PositionalEncoding(embed_dim=embed_dim, max_seq_len=max_seq_len)
-        elif self.pos_enc == 'learnable':
-            self.positional_encoding = PositionalEmbedding(embed_dim=embed_dim, max_seq_len=max_seq_len)
-
-        transformer_blocks = []
-        for i in range(num_layers):
-            transformer_blocks.append(
-                EncoderBlock(embed_dim=embed_dim, num_heads=num_heads, fc_dim=fc_dim, dropout=dropout))
-
-        self.transformer_blocks = nn.Sequential(*transformer_blocks)
-        self.embedder = nn.Linear(embed_dim, embed_dim_out)
-        self.output_dim = embed_dim_out
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, x, exp=False):
-
-        tokens = self.token_embedding(x)
-        batch_size, seq_length, embed_dim = tokens.size()
-
-        x = self.positional_encoding(tokens)
-        if exp:
-            return x
-        x = self.dropout(x)
-        x = self.transformer_blocks(x)
-
-        if self.pool =='max':
-            x = x.max(dim=1)[0]
-        elif self.pool =='mean':
-            x = x.mean(dim=1)
-            
-        return self.embedder(x)
+def get_text_encoder(args, device:torch.device) -> nn.Module:
     
-def main(embed_dim=128, num_heads=4, num_layers=4, pos_enc='fixed', pool='max', dropout=0.0, fc_dim=None, batch_size=2, embed_dim_out = 64):
+    class TransformerTextEmbedder(nn.Module):
+        def __init__(self, embed_dim, num_heads, num_layers, max_seq_len,
+                    pos_enc='fixed', pool='cls', dropout=0.0, 
+                    fc_dim=None, num_tokens=50_000, embed_dim_out=64, 
+                    
+        ):
+            super().__init__()
+
+            assert pool in ['mean', 'max']
+            assert pos_enc in ['fixed', 'learnable']
+            
+
+            self.pool, self.pos_enc, = pool, pos_enc
+            self.token_embedding = nn.Embedding(embedding_dim=embed_dim, num_embeddings=num_tokens)
+
+            if self.pos_enc == 'fixed':
+                self.positional_encoding = PositionalEncoding(embed_dim=embed_dim, max_seq_len=max_seq_len)
+            elif self.pos_enc == 'learnable':
+                self.positional_encoding = PositionalEmbedding(embed_dim=embed_dim, max_seq_len=max_seq_len)
+
+            transformer_blocks = []
+            for i in range(num_layers):
+                transformer_blocks.append(
+                    EncoderBlock(embed_dim=embed_dim, num_heads=num_heads, fc_dim=fc_dim, dropout=dropout))
+
+            self.transformer_blocks = nn.Sequential(*transformer_blocks)
+            self.embedder = nn.Linear(embed_dim, embed_dim_out)
+            self.output_dim = embed_dim_out
+            self.dropout = nn.Dropout(dropout)
+
+        def forward(self, x, exp=False):
+
+            tokens = self.token_embedding(x)
+            batch_size, seq_length, embed_dim = tokens.size()
+
+            x = self.positional_encoding(tokens)
+            if exp:
+                return x
+            x = self.dropout(x)
+            x = self.transformer_blocks(x)
+
+            if self.pool =='max':
+                x = x.max(dim=1)[0]
+            elif self.pool =='mean':
+                x = x.mean(dim=1)
+                
+            return self.embedder(x)
         
-    VOCAB_SIZE = 50_000
-    SAMPLED_RATIO = 0.2
-    MAX_SEQ_LEN = 512
-    model = TransformerTextEmbedder(embed_dim=embed_dim, 
-                                num_heads=num_heads, 
-                                num_layers=num_layers,
-                                pos_enc=pos_enc,
-                                pool=pool,  
-                                dropout=dropout,
-                                fc_dim=fc_dim,
-                                max_seq_len=MAX_SEQ_LEN, 
-                                num_tokens=VOCAB_SIZE, 
-                                embed_dim_out=embed_dim_out,
-                                )
+    class RobertaBase(nn.Module):
+        def __init__(self, device:torch.device):            
+            super(RobertaBase, self).__init__()
 
-    if torch.cuda.is_available():
-        model = model.to('cuda')
+            self.device = device
+            
+            self.tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
+            self.model = BertModel.from_pretrained("bert-base-cased")
+            for param in self.model.parameters(): 
+                    param.requires_grad_(False)
+                    
+                    
+            self.model.pooler = nn.Sequential(nn.Linear(768, 512)) # TODO: Hardcoded embed_dim (CHANGE)
+            
+            
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            tokens = self.tokenizer(x, return_tensors = 'pt', padding=True)
+            
+            output = self.model(**tokens)
+            last_hidden_state = output.last_hidden_state[:, 0, :]
+            print(output)
+            output = self.model.pooler(last_hidden_state)            
+            return output
 
-    from src.data.tokenization import train_dataloader
-
-    idxs, dummy_input = next(iter(train_dataloader))
-    dummy_input = dummy_input.to(device)
-    dummy_output = model(dummy_input)
-    print(dummy_output.shape)
-    print(dummy_output)
-
-def get_text_encoder(args, VOCAB_SIZE=50_000, SAMPLED_RATIO=0.2, MAX_SEQ_LEN=512):
-
-    model = TransformerTextEmbedder(embed_dim=args.embedding_dim, 
+    
+    if args.text_encoder_name == 'transformer_base':
+        return TransformerTextEmbedder(embed_dim=args.embedding_dim, 
                             num_heads=args.num_heads, 
                             num_layers=args.num_layers,
                             pos_enc=args.pos_enc,
                             pool=args.pool,  
                             dropout=args.dropout,
                             fc_dim=None,
-                            max_seq_len=MAX_SEQ_LEN, 
-                            num_tokens=VOCAB_SIZE, 
+                            max_seq_len=512, 
+                            num_tokens=50_000, 
                             embed_dim_out=args.embedding_dim,
                             )
+    if args.text_encoder_name == 'roberta_base':
+        return RobertaBase(device=device)
     
+def main(embed_dim=128, num_heads=4, num_layers=4, pos_enc='fixed', pool='max', dropout=0.0, fc_dim=None, batch_size=2, embed_dim_out = 64):
+        
+    VOCAB_SIZE = 50_000
+    SAMPLED_RATIO = 0.2
+    MAX_SEQ_LEN = 512
+    
+    parser = argparse.ArgumentParser(description='Hello')
+    
+    parser.add_argument('--batch_size',    type=int, default=64, help='batch size - default 64')
+    parser.add_argument('--embedding_dim', type=int, default=256, help='embedding dim - default 256')
+    parser.add_argument('--margin', type=float, default=0.5, help='margin (for loss function) - default 0.5')
+    parser.add_argument('--img_encoder_name', type=str, default="resnet", help='resnet, vit, efficientnet')
+    parser.add_argument('--text_encoder_name', type=str, default="roberta_base", help='transformer_base, roberta_base')
+    parser.add_argument("--text_mode", action="extend", nargs="+", type=str, default=['title'], help="text mode - default title")
+    parser.add_argument('--num_heads', type=int, default=4, help='number of heads - default 4')
+    parser.add_argument('--num_epochs', type=int, default=20, help='number of epochs - default 20')
+    parser.add_argument('--num_layers', type=int, default=4, help='number of layers - default 4')
+    parser.add_argument('--pos_enc', type=str, default='fixed', help='positional encoding - default fixed')
+    parser.add_argument('--pool', type=str, default='max', help='pooling - default max')
+    parser.add_argument('--dropout', type=float, default=0.0, help='probability of dropout - default 0.0')
+
+
+    args = parser.parse_args()
+    
+    model = get_text_encoder(args, device=device)
+
     if torch.cuda.is_available():
         model = model.to('cuda')
+
+ #   from data.tokenization import train_dataloader
+    from torch.utils.data import DataLoader, Dataset
+    from data.dataloader import CombinedDataSet
+    data_set = CombinedDataSet(p=0.2, mode='train', yield_raw_text=True)
+    data_loader = DataLoader(data_set, batch_size=batch_size, shuffle=True)
+    x = next(iter(data_loader))[1] # the text tuples
+    print(model(x).shape) # [batch, embed_dim]
     
-    return model
+    
+    
+    
+
+    # idxs, dummy_input = next(iter(train_dataloader))
+    # dummy_input = dummy_input.to(device)
+    # dummy_output = model(dummy_input)
+    # print(dummy_output.shape)
+    # print(dummy_output)
+
+# def get_text_encoder(args, VOCAB_SIZE=50_000, SAMPLED_RATIO=0.2, MAX_SEQ_LEN=512):
+
+#     model = TransformerTextEmbedder(embed_dim=args.embedding_dim, 
+#                             num_heads=args.num_heads, 
+#                             num_layers=args.num_layers,
+#                             pos_enc=args.pos_enc,
+#                             pool=args.pool,  
+#                             dropout=args.dropout,
+#                             fc_dim=None,
+#                             max_seq_len=MAX_SEQ_LEN, 
+#                             num_tokens=VOCAB_SIZE, 
+#                             embed_dim_out=args.embedding_dim,
+#                             )
+    
+#     if torch.cuda.is_available():
+#         model = model.to('cuda')
+    
+#     return model
 
 
 
 if __name__ == '__main__':
-    main()
+     main()
