@@ -80,15 +80,16 @@ class CombinedDataSet(Dataset):
 
         FILE_PATH = 'data/Food Ingredients and Recipe Dataset with Image Name Mapping.csv'
         print('building vocab')
-        self.datapipe = IterableWrapper([FILE_PATH])
-        self.datapipe = FileOpener(self.datapipe, mode='b')
-        self.datapipe = self.datapipe.parse_csv(skip_lines=1, delimiter=',', quotechar='"', quoting=1)
-        self.datapipe = self.datapipe.map(parse_datapipe)
 
-        self.tokenizer = get_tokenizer('basic_english')
-        self.vocab = get_vocab(self.datapipe, self.yield_tokens)
+        if not self.yield_raw_text:
+            self.datapipe = IterableWrapper([FILE_PATH])
+            self.datapipe = FileOpener(self.datapipe, mode='b')
+            self.datapipe = self.datapipe.parse_csv(skip_lines=1, delimiter=',', quotechar='"', quoting=1)
+            self.datapipe = self.datapipe.map(parse_datapipe)
+            self.tokenizer = get_tokenizer('basic_english')
+            self.vocab = get_vocab(self.datapipe, self.yield_tokens)
 
-        self.text_transform = lambda x: [self.vocab['']] + [self.vocab[token] for token in self.tokenizer(x)] + [self.vocab['']]
+            self.text_transform = lambda x: [self.vocab['']] + [self.vocab[token] for token in self.tokenizer(x)] + [self.vocab['']]
         self.csv = pd.read_csv(FILE_PATH)
         # Get dataset split
         # Since the text data set is used to load a corresponding image, we just select on the csv
@@ -146,7 +147,6 @@ def main(batch_size=2):
     data_loader = DataLoader(data_set, batch_size=batch_size, shuffle=True)
     print(next(iter(data_loader))[0].shape)
     print(next(iter(data_loader))[1])
-    exit()
     data_set = CombinedDataSet(p=0.2, mode='train')
     data_loader = DataLoader(data_set, batch_size=batch_size, shuffle=True, collate_fn=collate_batch_text)
     print(next(iter(data_loader))[0].shape)
