@@ -2,7 +2,7 @@ from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 
 import os
-os.chdir('C:/Users/jakob/Desktop/UniStuff/ADLCV-recipe-retrieval/src')
+# os.chdir('C:/Users/jakob/Desktop/UniStuff/ADLCV-recipe-retrieval/src')
 # https://github.com/andrei-radulescu-banu/stat453-deep-learning-ss21/blob/main/L15/migration_tutorial.ipynb
 
 tokenizer = get_tokenizer('basic_english')
