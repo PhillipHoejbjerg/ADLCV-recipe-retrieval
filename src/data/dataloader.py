@@ -52,7 +52,7 @@ class CombinedDataSet(Dataset):
     test set should not have negative pairs
     '''
     
-    def __init__(self, p=0.2, mode='train', text=['title']):
+    def __init__(self, p=0.2, mode='train', text=['title'], yield_raw_text=False):
         assert mode in ['train', 'test', 'val']
         self.text_mode = text
         if self.text_mode == ['title']:
@@ -76,6 +76,7 @@ class CombinedDataSet(Dataset):
                         std=[0.229, 0.224, 0.225])
         ])
         self.p = p
+        self.yield_raw_text = yield_raw_text
 
         FILE_PATH = 'data/Food Ingredients and Recipe Dataset with Image Name Mapping.csv'
         print('building vocab')
@@ -118,13 +119,15 @@ class CombinedDataSet(Dataset):
             text = _text.Title + ' ' + ' '.join(str(e) for e in _text.Cleaned_Ingredients)
         elif self.text_mode == ['title', 'ingredients', 'instructions']:
             text = _text.Title + ' ' + ' '.join(str(e) for e in _text.Cleaned_Ingredients) + ' ' + _text.Instructions
-        processed_text = torch.tensor(self.text_transform(text))
 
         image_path = 'data/processed/Food Images/' + _text.Image_Name + '.jpg'
         image = Image.open(image_path).convert("RGB")
         image = self.transform(image)
-
-        return image, processed_text, is_pos_pair
+        if self.yield_raw_text:
+            return image, text, is_pos_pair
+        else:
+            processed_text = torch.tensor(self.text_transform(text))
+            return image, processed_text, is_pos_pair
 
     
 def collate_fn(batch):
@@ -138,7 +141,12 @@ def collate_batch_text(batch):
     return img, text, torch.tensor(is_positive)
 
 def main(batch_size=2):
-
+    # how to get raw text from dataloaders
+    data_set = CombinedDataSet(p=0.2, mode='train', yield_raw_text=True)
+    data_loader = DataLoader(data_set, batch_size=batch_size, shuffle=True)
+    print(next(iter(data_loader))[0].shape)
+    print(next(iter(data_loader))[1])
+    exit()
     data_set = CombinedDataSet(p=0.2, mode='train')
     data_loader = DataLoader(data_set, batch_size=batch_size, shuffle=True, collate_fn=collate_batch_text)
     print(next(iter(data_loader))[0].shape)
