@@ -225,6 +225,7 @@ if __name__ == "__main__":
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate - default 0.001')
     parser.add_argument('--experiment_name', type=str, default="test", help='Experiment name - default test')
     parser.add_argument('--img_encoder_name', type=str, default="resnet", help='resnet, vit, efficientnet')
+    parser.add_argument('--text_encoder_name', type=str, default="roberta_base", help='roberta_base, transformer_base')
     parser.add_argument('--loss_fn', type=str, default="cosine", help='Loss_fn - default cosine')
     parser.add_argument('--p', type=float, default=0.8, help='probability of negative pair - default 0.8')
     parser.add_argument("--text_mode", action="extend", nargs="+", type=str, default=['title'], help="text mode - default title")
