@@ -31,5 +31,8 @@ def get_loss_fn(args):
     # TODO: Figure out how to do positive pairs with no mulitples of labels    
     if args.loss_fn == 'triplet':
         return nn.TripletMarginLoss(margin = args.margin, reduction='mean')
+    
+    if args.loss_fn == 'mse':
+        return nn.MSELoss(reduction='mean')
 
     
