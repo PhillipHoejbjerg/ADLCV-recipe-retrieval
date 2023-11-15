@@ -188,7 +188,6 @@ def get_text_encoder(args, device:torch.device) -> nn.Module:
             
             output = self.model(**tokens.to(self.device))
             last_hidden_state = output.last_hidden_state[:, 0, :]
-            print(output)
             output = self.model.pooler(last_hidden_state)            
             return output
 
