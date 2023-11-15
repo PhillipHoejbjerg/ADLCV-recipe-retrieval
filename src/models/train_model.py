@@ -99,7 +99,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img, R, is_pos_pair = batch
 
         phi_img, phi_R = self.forward(img, R)
-        print("is_pos_pair:", is_pos_pair[0], "\nphi_img:\n", phi_img[0], "phi_R:\n", phi_R[0])
+        print("is_pos_pair:", is_pos_pair[0], "\nphi_img:\n", phi_img[0][:6], "phi_R:\n", phi_R[0][:6])
 
         # Calculate loss here
         loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
@@ -114,7 +114,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
 
         # Getting latent space representations
         phi_img, phi_R = self(img, R)
-        print("is_pos_pair:", is_pos_pair[0], "\nphi_img:\n", phi_img[0], "phi_R:\n", phi_R[0])
+        print("is_pos_pair:", is_pos_pair[0], "\nphi_img:\n", phi_img[0][:6], "phi_R:\n", phi_R[0][:6])
 
 
         loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
