@@ -267,8 +267,8 @@ if __name__ == "__main__":
     # Defining model
     model = RecipeRetrievalLightningModule(img_encoder, 
                                             R_encoder, 
-                                            train_dataloader, 
                                             projection_head,
+                                            train_dataloader, 
                                             val_dataloader, 
                                             test_dataloader,
                                             loss_fn, 
