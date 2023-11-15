@@ -28,6 +28,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
     def __init__(self, 
                  img_encoder, 
                  R_encoder, 
+                 projection_head,
                  train_dataloader, 
                  val_dataloader, 
                  test_dataloader,
