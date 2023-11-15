@@ -79,7 +79,6 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         return self.test_dataloader_ 
 
     def forward(self, img, R):
-        
         # Getting latent space representations
         img_z, R_z = self.img_encoder(img), self.R_encoder(R)
 
@@ -94,7 +93,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img, R, is_pos_pair = batch
 
         phi_img, phi_R = self.forward(img, R)
-        print("phi_img:\n", phi_img, "phi_R:\n", phi_R)
+        print("is_pos_pair:", is_pos_pair, "\nphi_img:\n", phi_img, "phi_R:\n", phi_R)
 
         # Calculate loss here
         if self.loss_function.__class__.__name__ == 'MSELoss':
@@ -112,6 +111,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
 
         # Getting latent space representations
         phi_img, phi_R = self(img, R)
+        print("is_pos_pair:", is_pos_pair, "\nphi_img:\n", phi_img, "phi_R:\n", phi_R)
+
 
         # Calculate loss here
         if self.loss_function.__class__.__name__ == 'MSELoss':
@@ -251,7 +252,7 @@ if __name__ == "__main__":
     img_encoder      = get_image_encoder(args, device)
 
     # TODO: Recipe encoder should contain the concatenation technique within as well
-    R_encoder        = get_text_encoder(args)
+    R_encoder        = get_text_encoder(args, device)
 
     train_dataloader = get_dataloader(args, mode = 'train')
     val_dataloader   = get_dataloader(args, mode = 'val')

@@ -1,0 +1,23 @@
+Loaded module: cuda/11.8
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+
+  | Name          | Type                | Params
+------------------------------------------------------
+0 | loss_function | CosineEmbeddingLoss | 0     
+1 | img_encoder   | ResNet50            | 24.0 M
+2 | R_encoder     | RobertaBase         | 107 M 
+3 | W_R           | Linear              | 65.8 K
+4 | W_img         | Linear              | 65.8 K
+5 | accuracy      | MulticlassAccuracy  | 0     
+------------------------------------------------------
+852 K     Trainable params
+131 M     Non-trainable params
+132 M     Total params
+528.323   Total estimated model params size (MB)
+/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/trainer/connectors/data_connector.py:441: The 'val_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=5` in the `DataLoader` to improve performance.
+/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/utilities/data.py:77: Trying to infer the `batch_size` from an ambiguous collection. The batch size we found is 64. To avoid any miscalculations, use `self.log(..., batch_size=batch_size)`.
+/work3/s184984/repos/ADLCV-recipe-retrieval/recipe/lib/python3.11/site-packages/lightning/pytorch/trainer/connectors/data_connector.py:441: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=5` in the `DataLoader` to improve performance.
