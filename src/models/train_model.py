@@ -83,9 +83,9 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img_z, R_z = self.img_encoder(img), self.R_encoder(R)
 
         # Mapping to embedding space
-        # phi_img, phi_R = self.W_img(img_z), self.W_R(R_z)
+        phi_img, phi_R = self.W_img(img_z), self.W_R(R_z)
         
-        return img_z, R_z
+        return phi_img, phi_R
 
     def training_step(self, batch, batch_idx):
         
@@ -99,7 +99,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         if self.loss_function.__class__.__name__ == 'MSELoss':
             loss = self.loss_function(phi_img, phi_R)
         else:
-            loss = self.loss_function(phi_img, phi_R, is_pos_pair)
+            loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
         print(loss)
         self.log("train_loss", loss)
         return loss
