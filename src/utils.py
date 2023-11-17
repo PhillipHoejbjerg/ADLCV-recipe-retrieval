@@ -24,24 +24,31 @@ def get_loss_fn(args):
         
     class ClipLoss(nn.Module):
         '''figure 3 from clip paper and 
-        
         https://towardsdatascience.com/simple-implementation-of-openai-clip-model-a-tutorial-ace6ff01d9f2'''
-        def __init__(self, W_R, W_img):
+        def __init__(self):
             super().__init__()
-            self.W_R = W_R
-            self.W_img = W_img
 
-        def forward(self, I_emb, T_emb):
-            I_e = I_emb @ self.W_img / torch.norm(I_emb, dim=1, keepdim=True)
-            T_e = T_emb @ self.W_R / torch.norm(T_emb, dim=1, keepdim=True)
-            # TODO: t is temperature
-            logits = I_e @ T_e.T #* torch.exp(t)
+        def forward(self, I_emb, R_emb, temperature):
+            # Calculating the Loss
+            logits = (R_emb @ I_emb.T) / temperature
+            I_similarity = I_emb @ I_emb.T
+            R_similarity = R_emb @ R_emb.T
+            targets = F.softmax(
+                (I_similarity + R_similarity) / 2 * temperature, dim=-1
+            )
+            R_loss  = self.cross_entropy(logits, targets, reduction='none')
+            I_loss = self.cross_entropy(logits.T, targets.T, reduction='none')
+            loss =  (I_loss + R_loss) / 2.0 # shape: (batch_size)            
 
-            labels = torch.arange(logits.shape[0]).to(logits.device)
-            loss_i = F.cross_entropy(logits, labels)
-            loss_t = F.cross_entropy(logits.T, labels)
-            loss = (loss_i + loss_t) / 2
-            return torch.mean(loss)
+            return loss.mean()
+        
+        def cross_entropy(preds, targets, reduction='none'):
+            log_softmax = nn.LogSoftmax(dim=-1)
+            loss = (-targets * log_softmax(preds)).sum(1)
+            if reduction == "none":
+                return loss
+            elif reduction == "mean":
+                return loss.mean()
 
 
     if args.loss_fn == 'contrastive':

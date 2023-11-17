@@ -15,6 +15,9 @@ from src.models.text_encoder import get_text_encoder # TODO: Does not exist yet
 from src.utils import get_loss_fn
 from src.data.dataloader import denormalize
 
+from src.models.heads import get_head
+
+
 #import os
 
 #os.chdir('C:/Users/jakob/Desktop/UniStuff/ADLCV-recipe-retrieval/src')
@@ -25,6 +28,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
     def __init__(self, 
                  img_encoder, 
                  R_encoder, 
+                 projection_head,
                  train_dataloader, 
                  val_dataloader, 
                  test_dataloader,
@@ -42,7 +46,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         self.train_dataloader_  = train_dataloader
         self.val_dataloader_    = val_dataloader
         self.test_dataloader_   = test_dataloader
-        self.device_             = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device_            = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         # hyperparameters
         self.lr = lr
@@ -51,14 +55,17 @@ class RecipeRetrievalLightningModule(L.LightningModule):
 
         # Mapping the output of the encoders to the embedding space
         # 512 --> 256
-        self.W_R   = nn.Linear(R_encoder.output_dim,   self.embedding_dim)
-        self.W_img = nn.Linear(img_encoder.output_dim, self.embedding_dim)  
+        self.W_R   = projection_head(R_encoder.output_dim,   self.embedding_dim)
+        self.W_img = projection_head(img_encoder.output_dim, self.embedding_dim)  
+        self.t     = torch.nn.Parameter(torch.tensor([1.0])) # Learnable temperature parameter
 
         # Accuracy
         self.accuracy = Accuracy(task="multiclass", num_classes=self.test_dataloader_.batch_size) 
+
+
         # To optimise each encoder separately
         # https://lightning.ai/docs/pytorch/stable/common/optimization.html
-        self.automatic_optimization = False
+        # self.automatic_optimization = False #TODO: IMPLEMENT THIS WHEN EVERYTHING ELSE IS RUNNING
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
@@ -80,14 +87,13 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         return self.test_dataloader_ 
 
     def forward(self, img, R):
-        
         # Getting latent space representations
         img_z, R_z = self.img_encoder(img), self.R_encoder(R)
 
         # Mapping to embedding space
-        # phi_img, phi_R = self.W_img(img_z), self.W_R(R_z)
+        phi_img, phi_R = self.W_img(img_z), self.W_R(R_z)
         
-        return img_z, R_z
+        return phi_img, phi_R
 
     def training_step(self, batch, batch_idx):
         
@@ -95,14 +101,14 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img, R, is_pos_pair = batch
 
         phi_img, phi_R = self.forward(img, R)
-        print("phi_img:\n", phi_img, "phi_R:\n", phi_R)
+        print("is_pos_pair:", is_pos_pair[0], "\nphi_img:\n", phi_img[0][:6], "phi_R:\n", phi_R[0][:6])
 
         # Calculate loss here
-        if self.loss_function.__class__.__name__ == 'MSELoss':
-            loss = self.loss_function(phi_img, phi_R)
+        if self.loss_function.__class__.__name__ == 'ClipLoss':
+            loss = self.loss_function(phi_img, phi_R, self.t)
         else:
-            loss = self.loss_function(phi_img, phi_R, is_pos_pair)
-        print(loss)
+            loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
+
         self.log("train_loss", loss)
         # https://lightning.ai/docs/pytorch/stable/common/optimization.html
         return loss
@@ -114,13 +120,13 @@ class RecipeRetrievalLightningModule(L.LightningModule):
 
         # Getting latent space representations
         phi_img, phi_R = self(img, R)
+        print("is_pos_pair:", is_pos_pair[0], "\nphi_img:\n", phi_img[0][:6], "phi_R:\n", phi_R[0][:6])
 
         # Calculate loss here
-        if self.loss_function.__class__.__name__ == 'MSELoss':
-            loss = self.loss_function(phi_img, phi_R)
+        if self.loss_function.__class__.__name__ == 'ClipLoss':
+            loss = self.loss_function(phi_img, phi_R, self.t)
         else:
-            loss = self.loss_function(phi_img, phi_R, is_pos_pair)
-        print(loss)
+            loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
         self.log("val_loss", loss)
 
     def test_step(self, batch, batch_idx, recall_klist=(1, 5, 10)):
@@ -230,7 +236,8 @@ if __name__ == "__main__":
     parser.add_argument('--experiment_name', type=str, default="test", help='Experiment name - default test')
     parser.add_argument('--img_encoder_name', type=str, default="resnet", help='resnet, vit, efficientnet')
     parser.add_argument('--text_encoder_name', type=str, default="roberta_base", help='roberta_base, transformer_base')
-    parser.add_argument('--loss_fn', type=str, default="cosine", help='Loss_fn - default cosine')
+    parser.add_argument('--head_name', type=str, default="projection_head", help='projection_head')
+    parser.add_argument('--loss_fn', type=str, default="ClipLoss", help='Loss_fn - default cosine')
     parser.add_argument('--p', type=float, default=0.8, help='probability of negative pair - default 0.8')
     parser.add_argument("--text_mode", action="extend", nargs="+", type=str, default=['title'], help="text mode - default title")
     parser.add_argument('--num_heads', type=int, default=4, help='number of heads - default 4')
@@ -239,6 +246,7 @@ if __name__ == "__main__":
     parser.add_argument('--pos_enc', type=str, default='fixed', help='positional encoding - default fixed')
     parser.add_argument('--pool', type=str, default='max', help='pooling - default max')
     parser.add_argument('--dropout', type=float, default=0.0, help='probability of dropout - default 0.0')
+    # parser.add_argument('-t', '--temperature', type=float, default=0.0, help='probability of dropout - default 0.0')
 
 
     args = parser.parse_args()
@@ -253,7 +261,14 @@ if __name__ == "__main__":
     img_encoder      = get_image_encoder(args, device)
 
     # TODO: Recipe encoder should contain the concatenation technique within as well
-    R_encoder        = get_text_encoder(args)
+    R_encoder        = get_text_encoder(args, device) 
+    
+    # Initializing the projection head
+    projection_head  = get_head(args, device)
+
+    # No negative pairs for ClipLoss
+    if args.loss_fn == 'ClipLoss':
+        args.p = 0.0
 
     train_dataloader = get_dataloader(args, mode = 'train')
     val_dataloader   = get_dataloader(args, mode = 'val')
@@ -265,6 +280,7 @@ if __name__ == "__main__":
     # Defining model
     model = RecipeRetrievalLightningModule(img_encoder, 
                                             R_encoder, 
+                                            projection_head,
                                             train_dataloader, 
                                             val_dataloader, 
                                             test_dataloader,
