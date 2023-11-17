@@ -3,6 +3,13 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 
+def cross_entropy(preds, targets, reduction='none'):
+    log_softmax = nn.LogSoftmax(dim=-1)
+    loss = (-targets * log_softmax(preds)).sum(1)
+    if reduction == "none":
+        return loss
+    elif reduction == "mean":
+        return loss.mean()
 
 def get_loss_fn(args):
 
@@ -36,20 +43,11 @@ def get_loss_fn(args):
             targets = F.softmax(
                 (I_similarity + R_similarity) / 2 * temperature, dim=-1
             )
-            R_loss  = self.cross_entropy(logits, targets, reduction='none')
-            I_loss = self.cross_entropy(logits.T, targets.T, reduction='none')
+            R_loss  = cross_entropy(logits, targets, reduction='none')
+            I_loss  = cross_entropy(logits.T, targets.T, reduction='none')
             loss =  (I_loss + R_loss) / 2.0 # shape: (batch_size)            
 
             return loss.mean()
-        
-        def cross_entropy(preds, targets, reduction='none'):
-            log_softmax = nn.LogSoftmax(dim=-1)
-            loss = (-targets * log_softmax(preds)).sum(1)
-            if reduction == "none":
-                return loss
-            elif reduction == "mean":
-                return loss.mean()
-
 
     if args.loss_fn == 'contrastive':
         return ContrastiveLoss(margin = args.margin)
@@ -57,8 +55,8 @@ def get_loss_fn(args):
     if args.loss_fn == 'cosine':
         return nn.CosineEmbeddingLoss(margin = args.margin, reduction='mean')
     
-    if args.loss_fn == 'clip':
-        return ClipLoss
+    if args.loss_fn == 'ClipLoss':
+        return ClipLoss()
 
 
     # TODO: Figure out how to do positive pairs with no mulitples of labels    
