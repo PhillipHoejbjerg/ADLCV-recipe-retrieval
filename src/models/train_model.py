@@ -46,7 +46,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         self.train_dataloader_  = train_dataloader
         self.val_dataloader_    = val_dataloader
         self.test_dataloader_   = test_dataloader
-        self.device_             = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device_            = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         # hyperparameters
         self.lr = lr
@@ -57,6 +57,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # 512 --> 256
         self.W_R   = projection_head(R_encoder.output_dim,   self.embedding_dim)
         self.W_img = projection_head(img_encoder.output_dim, self.embedding_dim)  
+        self.t     = torch.nn.Parameter(torch.tensor([1.0])) # Learnable temperature parameter
 
         # Accuracy
         self.accuracy = Accuracy(task="multiclass", num_classes=self.test_dataloader_.batch_size) 
@@ -102,7 +103,10 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         print("is_pos_pair:", is_pos_pair[0], "\nphi_img:\n", phi_img[0][:6], "phi_R:\n", phi_R[0][:6])
 
         # Calculate loss here
-        loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
+        if self.loss_function.__class__.__name__ == 'ClipLoss':
+            loss = self.loss_function(phi_img, phi_R, self.t)
+        else:
+            loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
 
         self.log("train_loss", loss)
         return loss
@@ -116,9 +120,11 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         phi_img, phi_R = self(img, R)
         print("is_pos_pair:", is_pos_pair[0], "\nphi_img:\n", phi_img[0][:6], "phi_R:\n", phi_R[0][:6])
 
-
-        loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
-
+        # Calculate loss here
+        if self.loss_function.__class__.__name__ == 'ClipLoss':
+            loss = self.loss_function(phi_img, phi_R, self.t)
+        else:
+            loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
         self.log("val_loss", loss)
 
     def test_step(self, batch, batch_idx, recall_klist=(1, 5, 10)):
@@ -229,7 +235,7 @@ if __name__ == "__main__":
     parser.add_argument('--img_encoder_name', type=str, default="resnet", help='resnet, vit, efficientnet')
     parser.add_argument('--text_encoder_name', type=str, default="roberta_base", help='roberta_base, transformer_base')
     parser.add_argument('--head_name', type=str, default="projection_head", help='projection_head')
-    parser.add_argument('--loss_fn', type=str, default="cosine", help='Loss_fn - default cosine')
+    parser.add_argument('--loss_fn', type=str, default="ClipLoss", help='Loss_fn - default cosine')
     parser.add_argument('--p', type=float, default=0.8, help='probability of negative pair - default 0.8')
     parser.add_argument("--text_mode", action="extend", nargs="+", type=str, default=['title'], help="text mode - default title")
     parser.add_argument('--num_heads', type=int, default=4, help='number of heads - default 4')
@@ -238,6 +244,7 @@ if __name__ == "__main__":
     parser.add_argument('--pos_enc', type=str, default='fixed', help='positional encoding - default fixed')
     parser.add_argument('--pool', type=str, default='max', help='pooling - default max')
     parser.add_argument('--dropout', type=float, default=0.0, help='probability of dropout - default 0.0')
+    # parser.add_argument('-t', '--temperature', type=float, default=0.0, help='probability of dropout - default 0.0')
 
 
     args = parser.parse_args()
@@ -256,6 +263,10 @@ if __name__ == "__main__":
     
     # Initializing the projection head
     projection_head  = get_head(args, device)
+
+    # No negative pairs for ClipLoss
+    if args.loss_fn == 'ClipLoss':
+        args.p = 0.0
 
     train_dataloader = get_dataloader(args, mode = 'train')
     val_dataloader   = get_dataloader(args, mode = 'val')
