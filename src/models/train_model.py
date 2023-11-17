@@ -57,6 +57,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # Accuracy
         self.accuracy = Accuracy(task="multiclass", num_classes=self.test_dataloader_.batch_size) 
         # To optimise each encoder separately
+        # https://lightning.ai/docs/pytorch/stable/common/optimization.html
         self.automatic_optimization = False
 
     def configure_optimizers(self):
@@ -103,6 +104,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
             loss = self.loss_function(phi_img, phi_R, is_pos_pair)
         print(loss)
         self.log("train_loss", loss)
+        # https://lightning.ai/docs/pytorch/stable/common/optimization.html
         return loss
     
     def validation_step(self, batch, batch_idx):
