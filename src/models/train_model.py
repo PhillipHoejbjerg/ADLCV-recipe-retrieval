@@ -35,7 +35,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
                  loss_fn, 
                  lr = 0.001,
                  batch_size = 64,
-                 embedding_dim = 256):
+                 embedding_dim = 256,
+                 args = None):
         
         super().__init__()
         self.save_hyperparameters('lr', 'batch_size', 'embedding_dim')
@@ -66,10 +67,20 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # To optimise each encoder separately
         # https://lightning.ai/docs/pytorch/stable/common/optimization.html
         # self.automatic_optimization = False #TODO: IMPLEMENT THIS WHEN EVERYTHING ELSE IS RUNNING
-
+    
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
-        return optimizer
+        
+        # Define a learning rate annealing function
+        def lr_lambda(epoch):
+            return max(0.0, 1.0 - epoch / self.args.num_epochs)  # Example: linear annealing from 1.0 to 0.0 in 10 epochs
+
+        # Create a scheduler
+        lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+        
+        # Only return the scheduler if lr_scheduler is True
+        return {'optimizer': optimizer, 'lr_scheduler': {'scheduler': lr_scheduler, 'interval': 'epoch'}} if self.args.lr_scheduler else optimizer
+
 
     def train_dataloader(self):
         return self.train_dataloader_
@@ -144,6 +155,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # Mapping to embedding space
         phi_img, phi_R = self.W_img(img_z), self.W_R(R_z)
 
+        # COSINE LOSSES:
+        
         # Calculate cosine similarity
         cosine_similarities = pairwise_cosine_similarity(phi_img, phi_R)
 
@@ -246,6 +259,7 @@ if __name__ == "__main__":
     parser.add_argument('--pos_enc', type=str, default='fixed', help='positional encoding - default fixed')
     parser.add_argument('--pool', type=str, default='max', help='pooling - default max')
     parser.add_argument('--dropout', type=float, default=0.0, help='probability of dropout - default 0.0')
+    parser.add_argument('--lr_scheduler', type=bool, default=False, help='lr_scheduler - default False')
     # parser.add_argument('-t', '--temperature', type=float, default=0.0, help='probability of dropout - default 0.0')
 
 
@@ -287,7 +301,8 @@ if __name__ == "__main__":
                                             loss_fn, 
                                             lr = args.lr,
                                             batch_size = args.batch_size,
-                                            embedding_dim = args.embedding_dim)
+                                            embedding_dim = args.embedding_dim,
+                                            args = args)
     
 
     # Defining callbacks
