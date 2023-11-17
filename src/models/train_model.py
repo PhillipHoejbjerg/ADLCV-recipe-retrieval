@@ -64,6 +64,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
 
 
         # To optimise each encoder separately
+        # https://lightning.ai/docs/pytorch/stable/common/optimization.html
         # self.automatic_optimization = False #TODO: IMPLEMENT THIS WHEN EVERYTHING ELSE IS RUNNING
 
     def configure_optimizers(self):
@@ -109,6 +110,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
             loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
 
         self.log("train_loss", loss)
+        # https://lightning.ai/docs/pytorch/stable/common/optimization.html
         return loss
     
     def validation_step(self, batch, batch_idx):
