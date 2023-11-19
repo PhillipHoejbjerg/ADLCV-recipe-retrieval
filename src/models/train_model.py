@@ -166,6 +166,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
 
         # Unpacking batch
         img, R, _ = batch # TODO: IMPORTANT test dataloader should not have negative pairs!
+        batch_size = img.shape[0]
 
         # Getting latent space representations
         img_z, R_z = self.img_encoder(img), self.R_encoder(R)
@@ -187,8 +188,9 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img_pred  = torch.argmax(cosine_similarities, dim = 0)
 
         # Calculating accuracy
-        R_acc   = self.accuracy(R_pred,   torch.arange(self.test_dataloader_.batch_size).to(self.device_))
-        img_acc = self.accuracy(img_pred, torch.arange(self.test_dataloader_.batch_size).to(self.device_))
+        # print(R_pred.shape, batch_size)
+        R_acc   = self.accuracy(R_pred,   torch.arange(batch_size).to(self.device_))
+        img_acc = self.accuracy(img_pred, torch.arange(batch_size).to(self.device_))
         metrics['R_acc'] = R_acc
         metrics['img_acc'] = img_acc
         
@@ -223,7 +225,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         for index in recall_klist:
             metrics[f'recall_{int(index)}'] = recall_values[int(index)-1]
         
-        self.log_dict(metrics)
+        self.log_dict(metrics, batch_size=batch_size)
 
     def predict_step(self, batch, batch_idx):
 
@@ -341,4 +343,4 @@ if __name__ == "__main__":
     trainer.fit(model = model) # , train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
 
     # Testing model
-    trainer.test(model = model)
+    trainer.test(model = model, ckpt_path='last')

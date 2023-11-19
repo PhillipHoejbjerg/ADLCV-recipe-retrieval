@@ -118,6 +118,8 @@ class CombinedDataSet(Dataset):
             text = _text.Title
         elif self.text_mode == ['title', 'ingredients']:
             text = _text.Title + ' ' + ' '.join(str(e) for e in _text.Cleaned_Ingredients)
+        elif self.text_mode == ['title', 'instructions']:
+            text = _text.Title + ' ' + _text.Instructions
         elif self.text_mode == ['title', 'ingredients', 'instructions']:
             text = _text.Title + ' ' + ' '.join(str(e) for e in _text.Cleaned_Ingredients) + ' ' + _text.Instructions
 
@@ -195,8 +197,8 @@ def get_dataloader(args, mode = 'train'):
     # Dictionary of parameters for each mode
     mode_dict = {'train': {'batch_size': args.batch_size, 'shuffle': True},
                  'val':   {'batch_size': args.batch_size, 'shuffle': False},
-                 'test':  {'batch_size': len(data_set),   'shuffle': False}}
-        
+                 'test':  {'batch_size': 1000,   'shuffle': False}}
+                # we need to subsample the test set to fit in memory
     data_loader = DataLoader(data_set, batch_size=mode_dict[mode]['batch_size'], shuffle=mode_dict[mode]['shuffle'], collate_fn=coll, num_workers=args.num_workers)
 
     return data_loader
