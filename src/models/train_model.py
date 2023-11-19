@@ -61,15 +61,16 @@ class RecipeRetrievalLightningModule(L.LightningModule):
 
         # Accuracy
         self.accuracy = Accuracy(task="multiclass", num_classes=self.test_dataloader_.batch_size) 
-
+        self.image_optimizer = torch.optim.Adam(self.img_encoder.parameters(), lr=self.lr)
+        self.text_optimizer = torch.optim.Adam(self.R_encoder.parameters(), lr=self.lr)
 
         # To optimise each encoder separately
         # https://lightning.ai/docs/pytorch/stable/common/optimization.html
         # self.automatic_optimization = False #TODO: IMPLEMENT THIS WHEN EVERYTHING ELSE IS RUNNING
 
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
-        return optimizer
+    # def configure_optimizers(self):
+    #     optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+    #     return optimizer
 
     def train_dataloader(self):
         return self.train_dataloader_
@@ -99,6 +100,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         
         # Unpacking batch
         img, R, is_pos_pair = batch
+        self.image_optimizer.zero_grad()
+        self.text_optimizer.zero_grad()
 
         phi_img, phi_R = self.forward(img, R)
         print("is_pos_pair:", is_pos_pair[0], "\nphi_img:\n", phi_img[0][:6], "phi_R:\n", phi_R[0][:6])
@@ -108,7 +111,9 @@ class RecipeRetrievalLightningModule(L.LightningModule):
             loss = self.loss_function(phi_img, phi_R, self.t)
         else:
             loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
-
+        loss.backward()
+        self.image_optimizer.step()
+        self.text_optimizer.step()
         self.log("train_loss", loss)
         # https://lightning.ai/docs/pytorch/stable/common/optimization.html
         return loss
