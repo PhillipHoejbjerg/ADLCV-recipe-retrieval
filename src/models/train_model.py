@@ -158,7 +158,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         batch_size = img.shape[0]
         self.log("val_loss", loss, batch_size=batch_size)
 
-    def test_step(self, batch, batch_idx, recall_klist=(1, 5, 10)):
+    def test_step(self, batch, batch_idx, recall_klist=(1, 5, 10, 100, 250)):
         assert len(recall_klist) > 0, "recall_klist cannot be empty"
         metrics = {}
         # largest k to compute recall
@@ -343,4 +343,4 @@ if __name__ == "__main__":
     trainer.fit(model = model) # , train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
 
     # Testing model
-    trainer.test(model = model, ckpt_path='last')
+    trainer.test(model = model)
