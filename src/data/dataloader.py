@@ -79,9 +79,9 @@ class CombinedDataSet(Dataset):
         self.yield_raw_text = yield_raw_text
 
         FILE_PATH = 'data/Food Ingredients and Recipe Dataset with Image Name Mapping.csv'
-        print('building vocab')
 
         if not self.yield_raw_text:
+            print('building vocab')
             self.datapipe = IterableWrapper([FILE_PATH])
             self.datapipe = FileOpener(self.datapipe, mode='b')
             self.datapipe = self.datapipe.parse_csv(skip_lines=1, delimiter=',', quotechar='"', quoting=1)

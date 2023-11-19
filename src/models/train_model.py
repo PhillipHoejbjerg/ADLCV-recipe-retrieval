@@ -8,8 +8,10 @@ from torchmetrics.functional import pairwise_cosine_similarity
 from torchmetrics import Accuracy
 from lightning.pytorch.loggers import TensorBoardLogger
 import argparse
-from src.data.dataloader import get_dataloader
+from lightning.pytorch.callbacks import RichProgressBar
 
+
+from src.data.dataloader import get_dataloader
 from src.models.ImageEncoder import get_image_encoder
 from src.models.text_encoder import get_text_encoder # TODO: Does not exist yet
 from src.utils import get_loss_fn
@@ -48,6 +50,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         self.val_dataloader_    = val_dataloader
         self.test_dataloader_   = test_dataloader
         self.device_            = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.args               = args
 
         # hyperparameters
         self.lr = lr
@@ -62,8 +65,6 @@ class RecipeRetrievalLightningModule(L.LightningModule):
 
         # Accuracy
         self.accuracy = Accuracy(task="multiclass", num_classes=self.test_dataloader_.batch_size) 
-        self.image_optimizer = torch.optim.Adam(self.img_encoder.parameters(), lr=self.lr)
-        self.text_optimizer = torch.optim.Adam(self.R_encoder.parameters(), lr=self.lr)
 
         # To optimise each encoder separately
         # https://lightning.ai/docs/pytorch/stable/common/optimization.html
@@ -82,6 +83,11 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # Only return the scheduler if lr_scheduler is True
         return {'optimizer': optimizer, 'lr_scheduler': {'scheduler': lr_scheduler, 'interval': 'epoch'}} if self.args.lr_scheduler else optimizer
 
+    # def configure_optimizers(self):
+    #     '''for manual optimization'''
+    #     image_optimizer = torch.optim.Adam(self.img_encoder.parameters(), lr=self.lr)
+    #     text_optimizer = torch.optim.Adam(self.R_encoder.parameters(), lr=self.lr)
+    #     return image_optimizer, text_optimizer
 
     def train_dataloader(self):
         return self.train_dataloader_
@@ -92,6 +98,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
     def predict_dataloader(self):
         # this is technically the wrong dloader, but for testing purposes it is fine
         # as long as args.p = 0
+        # should be test_dataloader_
         return self.val_dataloader_ 
     
     # Entire test_set - in order to predict on entirety of test set
@@ -111,21 +118,24 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         
         # Unpacking batch
         img, R, is_pos_pair = batch
-        self.image_optimizer.zero_grad()
-        self.text_optimizer.zero_grad()
+        # image_optimizer, text_optimizer = self.optimizers()
+        # image_optimizer.zero_grad()
+        # text_optimizer.zero_grad()
 
         phi_img, phi_R = self.forward(img, R)
-        print("is_pos_pair:", is_pos_pair[0], "\nphi_img:\n", phi_img[0][:6], "phi_R:\n", phi_R[0][:6])
+        # print("is_pos_pair:", is_pos_pair[0], "\nphi_img:\n", phi_img[0][:6], "phi_R:\n", phi_R[0][:6])
 
         # Calculate loss here
         if self.loss_function.__class__.__name__ == 'ClipLoss':
             loss = self.loss_function(phi_img, phi_R, self.t)
         else:
             loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
-        loss.backward()
-        self.image_optimizer.step()
-        self.text_optimizer.step()
-        self.log("train_loss", loss)
+        # loss.backward()
+        # image_optimizer.step()
+        # text_optimizer.step()
+        # sometimes the batch size is inconsistent if it is the last batch
+        batch_size = img.shape[0]
+        self.log("train_loss", loss, batch_size=batch_size)
         # https://lightning.ai/docs/pytorch/stable/common/optimization.html
         return loss
     
@@ -136,14 +146,16 @@ class RecipeRetrievalLightningModule(L.LightningModule):
 
         # Getting latent space representations
         phi_img, phi_R = self(img, R)
-        print("is_pos_pair:", is_pos_pair[0], "\nphi_img:\n", phi_img[0][:6], "phi_R:\n", phi_R[0][:6])
+        # print("is_pos_pair:", is_pos_pair[0], "\nphi_img:\n", phi_img[0][:6], "phi_R:\n", phi_R[0][:6])
 
         # Calculate loss here
         if self.loss_function.__class__.__name__ == 'ClipLoss':
             loss = self.loss_function(phi_img, phi_R, self.t)
         else:
             loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
-        self.log("val_loss", loss)
+        # sometimes the batch size is inconsistent if it is the last batch
+        batch_size = img.shape[0]
+        self.log("val_loss", loss, batch_size=batch_size)
 
     def test_step(self, batch, batch_idx, recall_klist=(1, 5, 10)):
         assert len(recall_klist) > 0, "recall_klist cannot be empty"
@@ -234,10 +246,14 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # - thus argmax per column is the predicted image
         img_pred  = torch.argmax(cosine_similarities, dim = 0)
         # use this code to get the text as string
-        print(' '.join(self.test_dataloader_.dataset.vocab.lookup_tokens(list(R[42]))))
+        # print(' '.join(self.test_dataloader_.dataset.vocab.lookup_tokens(list(R[42]))))
         # image plot
         import matplotlib.pyplot as plt
-        plt.imshow(denormalize(img[42].permute(1,2,0).cpu()))
+        fig, ax = plt.subplots(1,2,dpi=100,figsize=(13, 5))
+        ax[0].imshow(denormalize(img[42].permute(1,2,0).cpu()))
+        ax[0].set_title(f'pred: {R[42]}')
+        ax[1].imshow(denormalize(img[img_pred[4]].permute(1,2,0).cpu()))
+        ax[1].set_title(f'pred: {R[R_pred[4]]}')
         plt.show()
 
         return R_pred, img_pred
@@ -314,9 +330,10 @@ if __name__ == "__main__":
     checkpoint_callback = ModelCheckpoint(monitor='val_loss')
 
     trainer = L.Trainer(default_root_dir="/models", # save_dir
-                        callbacks=[checkpoint_callback],
+                        callbacks=[checkpoint_callback, RichProgressBar()],
                         logger = tb_logger,
-                        max_epochs=args.num_epochs)
+                        max_epochs=args.num_epochs,
+                        check_val_every_n_epoch=1,)
 
     # Fitting model
     trainer.fit(model = model) # , train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
