@@ -100,7 +100,7 @@ class CombinedDataSet(Dataset):
         elif mode == 'test':
             self.csv = self.csv.iloc[train_size+val_size:, :]
             self.p = 0
-        self.csv.apply(parse_list_column, axis=1)
+        self.csv = self.csv.apply(parse_list_column, axis=1)
 
     def __len__(self):
         return len(self.csv)
@@ -181,7 +181,7 @@ def main(batch_size=2):
         plt.show()
         break
 
-def get_dataloader(args, mode = 'train', text_mode = ['title']):
+def get_dataloader(args, mode = 'train'):
     
     if args.text_encoder_name == 'roberta_base':
         coll = collate_batch_text_roberta
@@ -190,14 +190,14 @@ def get_dataloader(args, mode = 'train', text_mode = ['title']):
         coll = collate_batch_text
         yield_raw_text = False
 	
-    data_set  = CombinedDataSet(p=0.0, mode=mode, text=text_mode, yield_raw_text=yield_raw_text) if mode == 'test' else CombinedDataSet(p=args.p, mode=mode, text=text_mode, yield_raw_text=yield_raw_text)
+    data_set  = CombinedDataSet(p=0.0, mode=mode, text=args.text_mode, yield_raw_text=yield_raw_text) if mode == 'test' else CombinedDataSet(p=args.p, mode=mode, text=args.text_mode, yield_raw_text=yield_raw_text)
 
     # Dictionary of parameters for each mode
     mode_dict = {'train': {'batch_size': args.batch_size, 'shuffle': True},
                  'val':   {'batch_size': args.batch_size, 'shuffle': False},
                  'test':  {'batch_size': len(data_set),   'shuffle': False}}
         
-    data_loader = DataLoader(data_set, batch_size=mode_dict[mode]['batch_size'], shuffle=mode_dict[mode]['shuffle'], collate_fn=coll)
+    data_loader = DataLoader(data_set, batch_size=mode_dict[mode]['batch_size'], shuffle=mode_dict[mode]['shuffle'], collate_fn=coll, num_workers=args.num_workers)
 
     return data_loader
 

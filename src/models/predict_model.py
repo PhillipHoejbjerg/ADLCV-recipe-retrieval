@@ -85,4 +85,5 @@ if __name__ == "__main__":
     # Testing model
     model_path = 'tensorboard_logs/test/version_12/checkpoints/epoch=9-step=2980.ckpt'
     # model_path = 'tensorboard_logs/test/version_20/checkpoints/epoch=13-step=2086.ckpt'
-    trainer.predict(model = model, ckpt_path=model_path)
+    # trainer.predict(model = model, ckpt_path=model_path)
+    trainer.test(model = model, ckpt_path=model_path)

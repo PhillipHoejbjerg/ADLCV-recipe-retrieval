@@ -9,7 +9,8 @@ from torchmetrics import Accuracy
 from lightning.pytorch.loggers import TensorBoardLogger
 import argparse
 from lightning.pytorch.callbacks import RichProgressBar
-
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 from src.data.dataloader import get_dataloader
 from src.models.ImageEncoder import get_image_encoder
@@ -273,7 +274,7 @@ if __name__ == "__main__":
     parser.add_argument('--head_name', type=str, default="projection_head", help='projection_head')
     parser.add_argument('--loss_fn', type=str, default="ClipLoss", help='Loss_fn - default cosine')
     parser.add_argument('--p', type=float, default=0.8, help='probability of negative pair - default 0.8')
-    parser.add_argument("--text_mode", action="extend", nargs="+", type=str, default=['title'], help="text mode - default title")
+    parser.add_argument("--text_mode", type=str, default=['title'], help="text mode - default title")
     parser.add_argument('--num_heads', type=int, default=4, help='number of heads - default 4')
     parser.add_argument('--num_epochs', type=int, default=20, help='number of epochs - default 20')
     parser.add_argument('--num_layers', type=int, default=4, help='number of layers - default 4')
@@ -281,11 +282,12 @@ if __name__ == "__main__":
     parser.add_argument('--pool', type=str, default='max', help='pooling - default max')
     parser.add_argument('--dropout', type=float, default=0.0, help='probability of dropout - default 0.0')
     parser.add_argument('--lr_scheduler', type=bool, default=False, help='lr_scheduler - default False')
+    parser.add_argument('--num_workers', type=int, default=0, help='number of workers - default 0')
     # parser.add_argument('-t', '--temperature', type=float, default=0.0, help='probability of dropout - default 0.0')
 
 
     args = parser.parse_args()
-
+    args.text_mode = [item for item in args.text_mode.split(' ')]
     # get device
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 

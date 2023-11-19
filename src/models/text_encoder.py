@@ -185,6 +185,10 @@ def get_text_encoder(args, device:torch.device) -> nn.Module:
             
         def forward(self, x) -> torch.Tensor:
             tokens = self.tokenizer(x, return_tensors = 'pt', padding=True)
+            # we need to truncate the input sequence to 512 tokens due to limitations of the model
+            max_sequence_length = 512
+            for key, val in tokens.items():
+                tokens[key] = tokens[key][:,:max_sequence_length]
             
             output = self.model(**tokens.to(self.device))
             last_hidden_state = output.last_hidden_state[:, 0, :]
