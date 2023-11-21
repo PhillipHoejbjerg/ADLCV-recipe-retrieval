@@ -19,7 +19,7 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
 
     class ResNet50(nn.Module):
 
-        def __init__(self, output_dim:int, full_freeze:bool, device:torch.device):
+        def __init__(self, full_freeze:bool, device:torch.device):
             """ Image encoder to obtain features from images. Contains pretrained Resnet50 with last layer removed 
                 and a linear layer with the output dimension of (BATCH, image_emb_dim)
 
@@ -31,11 +31,7 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
             
             super(ResNet50, self).__init__()
             self.full_freeze = full_freeze
-            self.output_dim = output_dim
             self.device = device
-            
-            print(f"Encoder:\n \
-                    Encoder dimension: {self.output_dim}")
             
             # pretrained Resnet50 model with freezed parameters
             resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
@@ -45,12 +41,19 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
             # remove last layer 
             modules = list(resnet.children())[:-1]
             self.resnet = nn.Sequential(*modules)
-            
+
+            self.output_dim = resnet.fc.in_features
+
+            print(f"Encoder:\n \
+                    Encoder dimension: {self.output_dim}")            
+
+            """
             # define an embedding size to map to
             self.fc = nn.Linear(resnet.fc.in_features, self.output_dim) 
             if self.full_freeze:
                 for param in self.fc.parameters():
                     param.requires_grad_(False)
+            """
             
             
         def forward(self, images: torch.Tensor) -> torch.Tensor:
@@ -71,10 +74,10 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
             #print(f"Reshaped: {features.shape}")
             # features: (BATCH, 2048)
             
-            features = self.fc(features).to(self.device)
+            #features = self.fc(features).to(self.device)
             # features: (BATCH, IMAGE_EMB_DIM)
             
-            return nn.functional.tanh(features)
+            return features
         
     class ViT_Base(nn.Module):
 
@@ -177,7 +180,7 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
     
     
     if args.img_encoder_name == 'resnet':
-        return ResNet50(output_dim=args.embedding_dim, full_freeze=args.full_freeze, device=device_)
+        return ResNet50(full_freeze=args.full_freeze, device=device_)
     elif args.img_encoder_name == 'vit':
         return ViT_Base(output_dim=args.embedding_dim, full_freeze=args.full_freeze, device=device_)
     elif args.img_encoder_name == 'efficientnet':
@@ -205,4 +208,3 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
         return ViTForClassfication(config)
     else:
         print("Failure to procure model! Please use the following options:\n'resnet', 'vit', 'efficientnet' or 'vit_blank'.")
-        
