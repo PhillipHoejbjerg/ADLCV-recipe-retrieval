@@ -63,7 +63,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         self.W_R   = projection_head(R_encoder.output_dim,   self.embedding_dim)
         self.W_img = projection_head(img_encoder.output_dim, self.embedding_dim)  
         # Learnable temperature parameter
-        self.t     = torch.tensor([args.temperature]) if args.temperature else torch.nn.Parameter(torch.tensor([1.0]))
+        self.t     = torch.tensor([args.temperature],device=self.device_) if args.temperature else torch.nn.Parameter(torch.tensor([1.0],device=self.device_))
 
         # Accuracy
         self.accuracy = Accuracy(task="multiclass", num_classes=self.test_dataloader_.batch_size) 
@@ -277,7 +277,7 @@ if __name__ == "__main__":
     parser.add_argument('--head_name', type=str, default="projection_head", help='projection_head')
     parser.add_argument('--loss_fn', type=str, default="ClipLoss", help='Loss_fn - default cosine')
     parser.add_argument('--p', type=float, default=0.8, help='probability of negative pair - default 0.8')
-    parser.add_argument("--text_mode", type=str, default=['title'], help="text mode - default title")
+    parser.add_argument("--text_mode", type=str, default='title', help="text mode - default title")
     parser.add_argument('--num_heads', type=int, default=4, help='number of heads - default 4')
     parser.add_argument('--num_epochs', type=int, default=20, help='number of epochs - default 20')
     parser.add_argument('--num_layers', type=int, default=4, help='number of layers - default 4')
@@ -344,4 +344,5 @@ if __name__ == "__main__":
     trainer.fit(model = model) # , train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
 
     # Testing model
-    trainer.test(model = model)
+    trainer.test(model = model,ckpt_path='tensorboard_logs/test/version_42/checkpoints/epoch=19-step=2980.ckpt')
+    # trainer.test(model = model,ckpt_path='tensorboard_logs/test/version_42/checkpoints/epoch=19-step=2980.ckpt')
