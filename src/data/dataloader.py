@@ -66,8 +66,7 @@ class CombinedDataSet(Dataset):
         self.image_paths = os.listdir(self.path)
         # Compute splits sizes
         # this assumes that the data is shuffled beforehand
-        train_size = int(0.7 * len(self.image_paths))
-        val_size = int(0.1 * len(self.image_paths))
+
         
         self.transform = T.Compose([
             T.Resize((224, 224)),
@@ -93,6 +92,10 @@ class CombinedDataSet(Dataset):
         self.csv = pd.read_csv(FILE_PATH)
         # Get dataset split
         # Since the text data set is used to load a corresponding image, we just select on the csv
+        self.csv = self.csv.sample(frac=1).reset_index(drop=True)
+        train_size = int(0.7 * len(self.csv))
+        val_size = int(0.1 * len(self.csv))
+        random.shuffle()
         if mode == 'train':
             self.csv = self.csv.iloc[:train_size, :]
         elif mode == 'val':
