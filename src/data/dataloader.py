@@ -150,24 +150,21 @@ def collate_batch_text_roberta(batch):
 
 def main(batch_size=2):
     # how to get raw text from dataloaders
-    data_set = CombinedDataSet(p=0.2, mode='train', yield_raw_text=True)
-    data_loader = DataLoader(data_set, batch_size=batch_size, shuffle=True)
-    print(next(iter(data_loader))[0].shape)
-    print(next(iter(data_loader))[1])
-    data_set = CombinedDataSet(p=0.2, mode='train')
-    data_loader = DataLoader(data_set, batch_size=batch_size, shuffle=True, collate_fn=collate_batch_text)
-    print(next(iter(data_loader))[0].shape)
+    data_set = CombinedDataSet(p=0, mode='train',text=['title', 'instructions'], yield_raw_text=True)
+    data_loader = DataLoader(data_set, batch_size=batch_size, shuffle=True,collate_fn=collate_batch_text_roberta)
+    # print(next(iter(data_loader))[0].shape)
+    # print(next(iter(data_loader))[1])
     fig, ax = plt.subplots(1,2, figsize=(14, 5))
     for img, text, is_positive in data_loader:
-        print(text)
         for i in range(batch_size):
-            title = data_set.vocab.lookup_tokens(list(text[i]))
+            title = text[i]
             ax[i].imshow(denormalize(img[i].permute(1,2,0)))
-            ax[i].set_title(' '.join(title))
+            ax[i].set_title(title)
+            print(title)
         print(is_positive)
         plt.savefig('reports/figures/data_ex.png', dpi=300, bbox_inches='tight')
         plt.show()
-        break
+        break # just one batch
 
     data_set = CombinedDataSet(p=0.2, mode='test', text=['title', 'ingredients'])
     data_loader = DataLoader(data_set, batch_size=batch_size, shuffle=True, collate_fn=collate_batch_text)

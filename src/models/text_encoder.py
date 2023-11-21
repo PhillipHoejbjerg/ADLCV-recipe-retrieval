@@ -178,18 +178,16 @@ def get_text_encoder(args, device:torch.device) -> nn.Module:
             self.tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
             self.model = BertModel.from_pretrained("bert-base-cased")
             for param in self.model.parameters(): 
-                    param.requires_grad_(False)
+                param.requires_grad_(False)
                     
             # self.model.pooler = nn.Sequential(nn.Linear(768, self.output_dim)) 
             
             
         def forward(self, x) -> torch.Tensor:
-            tokens = self.tokenizer(x, return_tensors = 'pt', padding=True)
+            # https://github.com/moein-shariatnia/OpenAI-CLIP/blob/master/modules.py
             # we need to truncate the input sequence to 512 tokens due to limitations of the model
-            max_sequence_length = 512
-            for key, val in tokens.items():
-                tokens[key] = tokens[key][:,:max_sequence_length]
-            
+            tokens = self.tokenizer(x, return_tensors = 'pt', padding=True, truncation=True)
+           
             output = self.model(**tokens.to(self.device))
             last_hidden_state = output.last_hidden_state[:, 0, :]
             # output = self.model.pooler(last_hidden_state)            
