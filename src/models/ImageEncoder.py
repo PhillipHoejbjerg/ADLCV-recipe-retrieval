@@ -33,9 +33,6 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
             self.full_freeze = full_freeze
             self.device = device
             
-            print(f"Encoder:\n \
-                    Encoder dimension: {self.output_dim}")
-            
             # pretrained Resnet50 model with freezed parameters
             resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
             for param in resnet.parameters(): 
@@ -46,6 +43,9 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
             self.resnet = nn.Sequential(*modules)
 
             self.output_dim = resnet.fc.in_features
+
+            print(f"Encoder:\n \
+                    Encoder dimension: {self.output_dim}")            
 
             """
             # define an embedding size to map to
@@ -208,5 +208,3 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
         return ViTForClassfication(config)
     else:
         print("Failure to procure model! Please use the following options:\n'resnet', 'vit', 'efficientnet' or 'vit_blank'.")
-        
-model = get_image_encoder(args, device)
