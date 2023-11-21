@@ -109,7 +109,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
     def forward(self, img, R):
         # Getting latent space representations
         img_z, R_z = self.img_encoder(img), self.R_encoder(R)
-
+        img_z, R_z = nn.functional.tanh(img_z), nn.functional.tanh(R_z)
         # Mapping to embedding space
         phi_img, phi_R = self.W_img(img_z), self.W_R(R_z)
         
