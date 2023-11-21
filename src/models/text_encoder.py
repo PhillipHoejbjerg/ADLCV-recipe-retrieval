@@ -169,18 +169,18 @@ def get_text_encoder(args, device:torch.device) -> nn.Module:
             return self.embedder(x)
         
     class RobertaBase(nn.Module):
-        def __init__(self, embed_dim, device:torch.device):            
+        def __init__(self, device:torch.device):            
             super(RobertaBase, self).__init__()
 
             self.device = device
-            self.output_dim = embed_dim
+            self.output_dim = 768
             
             self.tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
             self.model = BertModel.from_pretrained("bert-base-cased")
             for param in self.model.parameters(): 
                     param.requires_grad_(False)
                     
-            self.model.pooler = nn.Sequential(nn.Linear(768, self.output_dim)) 
+            # self.model.pooler = nn.Sequential(nn.Linear(768, self.output_dim)) 
             
             
         def forward(self, x) -> torch.Tensor:
@@ -192,8 +192,8 @@ def get_text_encoder(args, device:torch.device) -> nn.Module:
             
             output = self.model(**tokens.to(self.device))
             last_hidden_state = output.last_hidden_state[:, 0, :]
-            output = self.model.pooler(last_hidden_state)            
-            return output
+            # output = self.model.pooler(last_hidden_state)            
+            return last_hidden_state
 
     
     if args.text_encoder_name == 'transformer_base':
@@ -209,8 +209,7 @@ def get_text_encoder(args, device:torch.device) -> nn.Module:
                             embed_dim_out=args.embedding_dim,
                             )
     if args.text_encoder_name == 'roberta_base':
-        return RobertaBase(embed_dim=args.embedding_dim, 
-                           device=device)
+        return RobertaBase(device=device)
     
 def main(embed_dim=128, num_heads=4, num_layers=4, pos_enc='fixed', pool='max', dropout=0.0, fc_dim=None, batch_size=2, embed_dim_out = 64):
         
