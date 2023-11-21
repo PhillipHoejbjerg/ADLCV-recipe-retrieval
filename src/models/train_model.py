@@ -130,6 +130,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # Calculate loss here
         if self.loss_function.__class__.__name__ == 'ClipLoss':
             loss = self.loss_function(phi_img, phi_R, self.t)
+        elif self.loss_function.__class__.__name__ == 'TripletLoss':
+            loss = self.loss_function(phi_img, phi_R)
         else:
             loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
         # loss.backward()
@@ -153,6 +155,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # Calculate loss here
         if self.loss_function.__class__.__name__ == 'ClipLoss':
             loss = self.loss_function(phi_img, phi_R, self.t)
+        elif self.loss_function.__class__.__name__ == 'TripletLoss':
+            loss = self.loss_function(phi_img, phi_R)
         else:
             loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
         # sometimes the batch size is inconsistent if it is the last batch
@@ -344,5 +348,5 @@ if __name__ == "__main__":
     trainer.fit(model = model) # , train_dataloaders = train_dataloader, val_dataloaders = val_dataloader)
 
     # Testing model
-    trainer.test(model = model,ckpt_path='tensorboard_logs/test/version_42/checkpoints/epoch=19-step=2980.ckpt')
+    trainer.test(model = model)
     # trainer.test(model = model,ckpt_path='tensorboard_logs/test/version_42/checkpoints/epoch=19-step=2980.ckpt')
