@@ -110,7 +110,9 @@ class RecipeRetrievalLightningModule(L.LightningModule):
     def forward(self, img, R):
         # Getting latent space representations
         img_z, R_z = self.img_encoder(img), self.R_encoder(R)
-        img_z, R_z = nn.functional.tanh(img_z), nn.functional.tanh(R_z)
+        # img_z, R_z = nn.functional.tanh(img_z), nn.functional.tanh(R_z)
+
+        # print("\nphi_img:\n", img_z[0][:6], "\nphi_img2:\n", img_z[1][:6], "\nphi_R1:\n", R_z[0][:6], "\nphi_R2:\n", R_z[1][:6])
         # Mapping to embedding space
         phi_img, phi_R = self.W_img(img_z), self.W_R(R_z)
         
@@ -125,7 +127,6 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # text_optimizer.zero_grad()
 
         phi_img, phi_R = self.forward(img, R)
-        # print("is_pos_pair:", is_pos_pair[0], "\nphi_img:\n", phi_img[0][:6], "phi_R:\n", phi_R[0][:6])
 
         # Calculate loss here
         if self.loss_function.__class__.__name__ == 'ClipLoss':
