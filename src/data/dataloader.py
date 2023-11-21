@@ -95,7 +95,6 @@ class CombinedDataSet(Dataset):
         self.csv = self.csv.sample(frac=1).reset_index(drop=True)
         train_size = int(0.7 * len(self.csv))
         val_size = int(0.1 * len(self.csv))
-        random.shuffle()
         if mode == 'train':
             self.csv = self.csv.iloc[:train_size, :]
         elif mode == 'val':
