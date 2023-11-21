@@ -74,7 +74,7 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
             features = self.fc(features).to(self.device)
             # features: (BATCH, IMAGE_EMB_DIM)
             
-            return nn.functional.tanh(features)
+            return features
         
     class ViT_Base(nn.Module):
 
