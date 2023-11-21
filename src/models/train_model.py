@@ -62,7 +62,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # 512 --> 256
         self.W_R   = projection_head(R_encoder.output_dim,   self.embedding_dim)
         self.W_img = projection_head(img_encoder.output_dim, self.embedding_dim)  
-        self.t     = torch.nn.Parameter(torch.tensor([1.0])) # Learnable temperature parameter
+        # Learnable temperature parameter
+        self.t     = torch.tensor([args.temperature],device=self.device_) if args.temperature else torch.nn.Parameter(torch.tensor([1.0],device=self.device_))
 
         # Accuracy
         self.accuracy = Accuracy(task="multiclass", num_classes=self.test_dataloader_.batch_size) 
@@ -129,6 +130,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # Calculate loss here
         if self.loss_function.__class__.__name__ == 'ClipLoss':
             loss = self.loss_function(phi_img, phi_R, self.t)
+        elif self.loss_function.__class__.__name__ == 'TripletLoss':
+            loss = self.loss_function(phi_img, phi_R)
         else:
             loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
         # loss.backward()
@@ -152,13 +155,15 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # Calculate loss here
         if self.loss_function.__class__.__name__ == 'ClipLoss':
             loss = self.loss_function(phi_img, phi_R, self.t)
+        elif self.loss_function.__class__.__name__ == 'TripletLoss':
+            loss = self.loss_function(phi_img, phi_R)
         else:
             loss = self.loss_function(phi_img, phi_R, torch.where(is_pos_pair, torch.tensor(1), torch.tensor(-1)))
         # sometimes the batch size is inconsistent if it is the last batch
         batch_size = img.shape[0]
         self.log("val_loss", loss, batch_size=batch_size)
 
-    def test_step(self, batch, batch_idx, recall_klist=(1, 5, 10)):
+    def test_step(self, batch, batch_idx, recall_klist=(1, 5, 10, 100, 250)):
         assert len(recall_klist) > 0, "recall_klist cannot be empty"
         metrics = {}
         # largest k to compute recall
@@ -166,6 +171,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
 
         # Unpacking batch
         img, R, _ = batch # TODO: IMPORTANT test dataloader should not have negative pairs!
+        batch_size = img.shape[0]
 
         # Getting latent space representations
         img_z, R_z = self.img_encoder(img), self.R_encoder(R)
@@ -187,8 +193,9 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img_pred  = torch.argmax(cosine_similarities, dim = 0)
 
         # Calculating accuracy
-        R_acc   = self.accuracy(R_pred,   torch.arange(self.test_dataloader_.batch_size).to(self.device_))
-        img_acc = self.accuracy(img_pred, torch.arange(self.test_dataloader_.batch_size).to(self.device_))
+        # print(R_pred.shape, batch_size)
+        R_acc   = self.accuracy(R_pred,   torch.arange(batch_size).to(self.device_))
+        img_acc = self.accuracy(img_pred, torch.arange(batch_size).to(self.device_))
         metrics['R_acc'] = R_acc
         metrics['img_acc'] = img_acc
         
@@ -223,7 +230,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         for index in recall_klist:
             metrics[f'recall_{int(index)}'] = recall_values[int(index)-1]
         
-        self.log_dict(metrics)
+        self.log_dict(metrics, batch_size=batch_size)
 
     def predict_step(self, batch, batch_idx):
 
@@ -274,7 +281,7 @@ if __name__ == "__main__":
     parser.add_argument('--head_name', type=str, default="projection_head", help='projection_head')
     parser.add_argument('--loss_fn', type=str, default="ClipLoss", help='Loss_fn - default cosine')
     parser.add_argument('--p', type=float, default=0.8, help='probability of negative pair - default 0.8')
-    parser.add_argument("--text_mode", type=str, default=['title'], help="text mode - default title")
+    parser.add_argument("--text_mode", type=str, default='title', help="text mode - default title")
     parser.add_argument('--num_heads', type=int, default=4, help='number of heads - default 4')
     parser.add_argument('--num_epochs', type=int, default=20, help='number of epochs - default 20')
     parser.add_argument('--num_layers', type=int, default=4, help='number of layers - default 4')
@@ -283,7 +290,7 @@ if __name__ == "__main__":
     parser.add_argument('--dropout', type=float, default=0.0, help='probability of dropout - default 0.0')
     parser.add_argument('--lr_scheduler', type=bool, default=False, help='lr_scheduler - default False')
     parser.add_argument('--num_workers', type=int, default=0, help='number of workers - default 0')
-    # parser.add_argument('-t', '--temperature', type=float, default=0.0, help='probability of dropout - default 0.0')
+    parser.add_argument('-t', '--temperature', type=float, default=0.0, help='https://velog.io/@clayryu328/paper-review-CLIP-Learning-Transferable-Visual-Models-From-Natural-Language-Supervision')
 
 
     args = parser.parse_args()
@@ -342,3 +349,4 @@ if __name__ == "__main__":
 
     # Testing model
     trainer.test(model = model)
+    # trainer.test(model = model,ckpt_path='tensorboard_logs/test/version_42/checkpoints/epoch=19-step=2980.ckpt')
