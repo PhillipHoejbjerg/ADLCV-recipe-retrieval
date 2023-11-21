@@ -62,7 +62,8 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # 512 --> 256
         self.W_R   = projection_head(R_encoder.output_dim,   self.embedding_dim)
         self.W_img = projection_head(img_encoder.output_dim, self.embedding_dim)  
-        self.t     = torch.nn.Parameter(torch.tensor([1.0])) # Learnable temperature parameter
+        # Learnable temperature parameter
+        self.t     = torch.tensor([args.temperature]) if args.temperature else torch.nn.Parameter(torch.tensor([1.0]))
 
         # Accuracy
         self.accuracy = Accuracy(task="multiclass", num_classes=self.test_dataloader_.batch_size) 
@@ -285,7 +286,7 @@ if __name__ == "__main__":
     parser.add_argument('--dropout', type=float, default=0.0, help='probability of dropout - default 0.0')
     parser.add_argument('--lr_scheduler', type=bool, default=False, help='lr_scheduler - default False')
     parser.add_argument('--num_workers', type=int, default=0, help='number of workers - default 0')
-    # parser.add_argument('-t', '--temperature', type=float, default=0.0, help='probability of dropout - default 0.0')
+    parser.add_argument('-t', '--temperature', type=float, default=0.0, help='https://velog.io/@clayryu328/paper-review-CLIP-Learning-Transferable-Visual-Models-From-Natural-Language-Supervision')
 
 
     args = parser.parse_args()
