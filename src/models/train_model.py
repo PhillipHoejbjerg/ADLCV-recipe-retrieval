@@ -10,6 +10,8 @@ from lightning.pytorch.loggers import TensorBoardLogger
 import argparse
 from lightning.pytorch.callbacks import RichProgressBar
 import os
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 from src.data.dataloader import get_dataloader
@@ -75,15 +77,19 @@ class RecipeRetrievalLightningModule(L.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
         
-        # Define a learning rate annealing function
-        def lr_lambda(epoch):
-            return max(0.0, 1.0 - epoch / self.args.num_epochs)  # Example: linear annealing from 1.0 to 0.0 in 10 epochs
-
-        # Create a scheduler
-        lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+        # Define the learning rate scheduler
+        scheduler = {
+            'scheduler': ReduceLROnPlateau(optimizer, mode='min', patience=5, factor=0.1, verbose=True),
+            'monitor': 'val_loss',  # Replace with the metric you want to monitor
+            'interval': 'epoch',
+            'frequency': 1
+        }
         
-        # Only return the scheduler if lr_scheduler is True
-        return {'optimizer': optimizer, 'lr_scheduler': {'scheduler': lr_scheduler, 'interval': 'epoch'}} if self.args.lr_scheduler else optimizer
+        if self.args.lr_scheduler:
+            print("using lr_schduler!!!ß")
+            return [optimizer], [scheduler]
+        else:
+            return optimizer
 
     # def configure_optimizers(self):
     #     '''for manual optimization'''
