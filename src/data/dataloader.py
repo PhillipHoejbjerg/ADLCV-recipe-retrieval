@@ -92,9 +92,10 @@ class CombinedDataSet(Dataset):
         self.csv = pd.read_csv(FILE_PATH)
         # Get dataset split
         # Since the text data set is used to load a corresponding image, we just select on the csv
-        self.csv = self.csv.sample(frac=1).reset_index(drop=True)
+        # self.csv = self.csv.sample(frac=1).reset_index(drop=True)
         train_size = int(0.7 * len(self.csv))
         val_size = int(0.1 * len(self.csv))
+
         if mode == 'train':
             self.csv = self.csv.iloc[:train_size, :]
         elif mode == 'val':
