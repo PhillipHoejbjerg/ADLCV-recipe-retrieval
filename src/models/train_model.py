@@ -19,6 +19,7 @@ from src.utils import get_loss_fn
 from src.data.dataloader import denormalize
 
 from src.models.heads import get_head
+from wordcloud import WordCloud
 
 
 #import os
@@ -101,7 +102,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # this is technically the wrong dloader, but for testing purposes it is fine
         # as long as args.p = 0
         # should be test_dataloader_
-        return self.val_dataloader_ 
+        return self.test_dataloader_
     
     # Entire test_set - in order to predict on entirety of test set
     def test_dataloader(self):
@@ -112,7 +113,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img_z, R_z = self.img_encoder(img), self.R_encoder(R)
         # img_z, R_z = nn.functional.tanh(img_z), nn.functional.tanh(R_z)
 
-        # print("\nphi_img:\n", img_z[0][:6], "\nphi_img2:\n", img_z[1][:6], "\nphi_R1:\n", R_z[0][:6], "\nphi_R2:\n", R_z[1][:6])
+        # print("/nphi_img:/n", img_z[0][:6], "/nphi_img2:/n", img_z[1][:6], "/nphi_R1:/n", R_z[0][:6], "/nphi_R2:/n", R_z[1][:6])
         # Mapping to embedding space
         phi_img, phi_R = self.W_img(img_z), self.W_R(R_z)
         
@@ -151,7 +152,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
 
         # Getting latent space representations
         phi_img, phi_R = self(img, R)
-        # print("is_pos_pair:", is_pos_pair[0], "\nphi_img:\n", phi_img[0][:6], "phi_R:\n", phi_R[0][:6])
+        # print("is_pos_pair:", is_pos_pair[0], "/nphi_img:/n", phi_img[0][:6], "phi_R:/n", phi_R[0][:6])
 
         # Calculate loss here
         if self.loss_function.__class__.__name__ == 'ClipLoss':
@@ -236,34 +237,76 @@ class RecipeRetrievalLightningModule(L.LightningModule):
     def predict_step(self, batch, batch_idx):
 
         # Unpacking batch
-        img, R, _ = batch # TODO: IMPORTANT test dataloader should not have negative pairs!
+        img, R, _ = batch # always positive pairs
+        batch_size = img.shape[0]
 
         # Getting latent space representations
         img_z, R_z = self.img_encoder(img), self.R_encoder(R)
-
         # Mapping to embedding space
         phi_img, phi_R = self.W_img(img_z), self.W_R(R_z)
-
         # Calculate cosine similarity
         cosine_similarities = pairwise_cosine_similarity(phi_img, phi_R)
-
         # first row is the first img wrt all recipes      
         # - thus argmax per row is the predicted recipe
         R_pred = torch.argmax(cosine_similarities, dim = 1)
-
         # first column is the first recipe wrt all images 
         # - thus argmax per column is the predicted image
         img_pred  = torch.argmax(cosine_similarities, dim = 0)
-        # use this code to get the text as string
-        # print(' '.join(self.test_dataloader_.dataset.vocab.lookup_tokens(list(R[42]))))
-        # image plot
+        cosine_similarities = cosine_similarities.cpu().numpy()
+        positions = np.count_nonzero(cosine_similarities < np.diag(cosine_similarities)[:, None], axis=-1) + 1
+        max_k = 4
+        # get the topk elements for each query (topk elements with lower dist)
+        rankings_R = np.argpartition(cosine_similarities, max_k, axis=-1)[:, :max_k]
+        # torch.topk(torch.tensor(cosine_similarities),max_k,largest=False,sorted=True,dim=-1)
+        rankings_img = np.argpartition(cosine_similarities, max_k, axis=0)[:max_k, :].transpose(1,0)
+        # with torch (it does the same)
+        # torch.topk(torch.tensor(cosine_similarities),max_k,largest=False,sorted=True,dim=0).values.permute(1,0)
         import matplotlib.pyplot as plt
-        fig, ax = plt.subplots(1,2,dpi=100,figsize=(13, 5))
-        ax[0].imshow(denormalize(img[42].permute(1,2,0).cpu()))
-        ax[0].set_title(f'pred: {R[42]}')
-        ax[1].imshow(denormalize(img[img_pred[4]].permute(1,2,0).cpu()))
-        ax[1].set_title(f'pred: {R[R_pred[4]]}')
-        plt.show()
+        import textwrap
+        text_width = 25
+        # image and wordclouds  
+        # Plot the closest text as a wordcloud
+        for n_images in range(10):
+            fig, ax = plt.subplots(2, max_k+1, dpi=200, figsize=(15, 5),tight_layout=True)
+            for j in range(2):
+                rdn_img_to_plot = n_images+j
+
+                ax[j,0].imshow(denormalize(img[rdn_img_to_plot].permute(1, 2, 0).cpu()))
+                ax[j,0].axis('off')
+                ax[j,0].set_title(textwrap.fill(self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size+rdn_img_to_plot,:].Title, text_width), wrap=True)
+                for i in range(max_k):
+                    recipe_no = rankings_R[rdn_img_to_plot][i].item()
+                    closest_text = R[recipe_no]
+                    closest_text_title = self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size+recipe_no,:].Title
+                    # 274x169
+                    wordcloud = WordCloud(background_color='white',width=274,height=169).generate(closest_text)
+
+                    ax[j,i+1].imshow(wordcloud, interpolation='bilinear')
+                    ax[j,i+1].set_title(textwrap.fill(closest_text_title, text_width), wrap=True)
+                    ax[j,i+1].axis('off')
+            plt.savefig(f'reports/figures/im2text_{batch_idx}.png', dpi=300, bbox_inches='tight')
+            # plt.show()
+            # plot the closest images
+            fig, ax = plt.subplots(2, max_k+1, dpi=200, figsize=(15, 5),tight_layout=True)
+            for j in range(2):
+                rdn_img_to_plot = n_images+j
+                text = R[rdn_img_to_plot]
+                wordcloud = WordCloud(background_color='white',width=274,height=169).generate(text)
+                closest_text_title = self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size+rdn_img_to_plot,:].Title
+
+                ax[j,0].imshow(wordcloud, interpolation='bilinear')
+                ax[j,0].axis('off')
+                ax[j,0].set_title(textwrap.fill(closest_text_title, text_width), wrap=True)
+                for i in range(max_k):
+                    img_no = rankings_img[rdn_img_to_plot][i].item()
+                    closest_image = img[img_no]
+                    closest_image_title = self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size+img_no,:].Title
+                    ax[j,i+1].imshow(denormalize(closest_image.permute(1, 2, 0).cpu()))
+                    ax[j,i+1].axis('off')
+                    ax[j,i+1].set_title(textwrap.fill(closest_image_title, text_width), wrap=True)
+            plt.savefig(f'reports/figures/text2im_{batch_idx}.png', dpi=300, bbox_inches='tight')
+            # plt.show()
+            plt.close('all')
 
         return R_pred, img_pred
 
@@ -295,7 +338,8 @@ if __name__ == "__main__":
 
 
     args = parser.parse_args()
-    args.text_mode = [item for item in args.text_mode.split(' ')]
+    args.text_mode = [item for item in args.text_mode.split(',')]
+    # sorry changed how to input text_mode it is now e.g. "title,ingredients"
     # get device
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -351,3 +395,7 @@ if __name__ == "__main__":
     # Testing model
     trainer.test(model = model)
     # trainer.test(model = model,ckpt_path='tensorboard_logs/test/version_42/checkpoints/epoch=19-step=2980.ckpt')
+
+    # title and instructions were used for this model
+    # trainer.predict(model=model)
+    # trainer.predict(model=model, ckpt_path='tensorboard_logs/test/version_52/checkpoints/epoch=1-step=296.ckpt')
