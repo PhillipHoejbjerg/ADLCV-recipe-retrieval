@@ -82,8 +82,11 @@ class RecipeRetrievalLightningModule(L.LightningModule):
             'interval': 'epoch',
             'frequency': 1
         }
-        
-        return [optimizer], [scheduler] if self.args.lr_scheduler else optimizer
+
+        if args.lr_scheduler:
+            return [optimizer], [scheduler] 
+        else:
+            return optimizer
 
     # Dataloaders
     def train_dataloader(self):
