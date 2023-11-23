@@ -52,7 +52,7 @@ class CombinedDataSet(Dataset):
     test set should not have negative pairs
     '''
     
-    def __init__(self, p=0.8, mode='train', text=['title'], yield_raw_text=False):
+    def __init__(self, p=0.8, mode='train', text=['title'], yield_raw_text=False, args=None):
         assert mode in ['train', 'test', 'val']
         self.text_mode = text
         if self.text_mode == ['title']:
@@ -69,7 +69,7 @@ class CombinedDataSet(Dataset):
 
         
         self.transform = T.Compose([
-            T.Resize((224, 224)),
+            T.CenterCrop(224) if args.center_crop else T.Resize((224, 224)),
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], 
                         std=[0.229, 0.224, 0.225])
@@ -201,12 +201,12 @@ def get_dataloader(args, mode = 'train'):
     if args.loss_fn == 'ClipLoss' or args.loss_fn == 'TripletLoss':
         args.p = 0.0
 	
-    data_set  = CombinedDataSet(p=0.0, mode=mode, text=args.text_mode, yield_raw_text=yield_raw_text) if mode == 'test' else CombinedDataSet(p=args.p, mode=mode, text=args.text_mode, yield_raw_text=yield_raw_text)
+    data_set  = CombinedDataSet(p=0.0, mode=mode, text=args.text_mode, yield_raw_text=yield_raw_text, args=args) if mode == 'test' else CombinedDataSet(p=args.p, mode=mode, text=args.text_mode, yield_raw_text=yield_raw_text, args=args)
 
     # Dictionary of parameters for each mode
     mode_dict = {'train': {'batch_size': args.batch_size, 'shuffle': True},
                  'val':   {'batch_size': args.batch_size, 'shuffle': False},
-                 'test':  {'batch_size': 1000,            'shuffle': False}}
+                 'test':  {'batch_size': 250,            'shuffle': False}}
                 # we need to subsample the test set to fit in memory
     data_loader = DataLoader(data_set, batch_size=mode_dict[mode]['batch_size'], shuffle=mode_dict[mode]['shuffle'], collate_fn=coll, num_workers=args.num_workers)
 

@@ -316,6 +316,8 @@ if __name__ == "__main__":
     # Encoder Settings
     parser.add_argument('--embedding_dim', type=int, default=256, help='embedding dim - default 256')
     parser.add_argument('--normalize', type=bool, default=True, help='Normalize pretrained embeddings - default True')
+    parser.add_argument('--center_crop', type=bool, default=True, help='Use center-crop - default True')
+    
     
     # Loss
     parser.add_argument('--loss_fn', type=str, default="ClipLoss", help='Loss_fn - default cosine')
