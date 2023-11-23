@@ -43,7 +43,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
                  args = None):
         
         super().__init__()
-        self.save_hyperparameters('lr', 'batch_size', 'embedding_dim', 'p', 'loss_fn', 'margin', 'experiment_name', 'img_encoder_name', 'text_encoder_name', 'head_name', 'text_mode', 'num_heads', 'num_epochs', 'num_layers', 'pos_enc', 'pool', 'dropout', 'lr_scheduler', 'num_workers', 'temperature')
+        self.save_hyperparameters('lr', 'batch_size', 'embedding_dim', 'loss_fn')
 
         self.loss_function      = loss_fn
         self.img_encoder        = img_encoder
