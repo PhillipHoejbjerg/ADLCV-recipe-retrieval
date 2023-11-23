@@ -180,7 +180,7 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
     
     
     if args.img_encoder_name == 'resnet':
-        return ResNet50(full_freeze=args.full_freeze, device=device_)
+        return ResNet50(full_freeze=False, device=device_)
     elif args.img_encoder_name == 'vit':
         return ViT_Base(output_dim=args.embedding_dim, full_freeze=args.full_freeze, device=device_)
     elif args.img_encoder_name == 'efficientnet':
