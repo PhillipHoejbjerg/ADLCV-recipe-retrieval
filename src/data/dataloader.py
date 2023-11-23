@@ -119,11 +119,11 @@ class CombinedDataSet(Dataset):
             is_pos_pair = False
         if self.text_mode == ['title']:
             text = _text.Title
-        elif self.text_mode == ['title', 'ingredients']:
+        elif self.text_mode == ['title', 'ingredients'] or self.text_mode[0].split() == ['title', 'ingredients']:
             text = _text.Title + ' ' + ' '.join(str(e) for e in _text.Cleaned_Ingredients)
-        elif self.text_mode == ['title', 'instructions']:
+        elif self.text_mode == ['title', 'instructions'] or self.text_mode[0].split() == ['title', 'instructions']:
             text = _text.Title + ' ' + _text.Instructions
-        elif self.text_mode == ['title', 'ingredients', 'instructions']:
+        elif self.text_mode == ['title', 'ingredients', 'instructions'] or self.text_mode[0].split() == ['title', 'ingredients', 'instructions']:
             text = _text.Title + ' ' + ' '.join(str(e) for e in _text.Cleaned_Ingredients) + ' ' + _text.Instructions
 
         image_path = 'data/processed/Food Images/' + _text.Image_Name + '.jpg'
