@@ -293,13 +293,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         return R_pred, img_pred
 
 if __name__ == "__main__":
-
-    # get device
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-    # Initializing tensorboard logger
-    tb_logger        = TensorBoardLogger(save_dir = "tensorboard_logs", name=args.experiment_name)    
-    
+       
     parser = argparse.ArgumentParser(description='Recipe Retrieval Training Script')
     
     # Experiment name
@@ -335,6 +329,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     args.text_mode = [item for item in args.text_mode.split(',')]
+
+    # get device
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    # Initializing tensorboard logger
+    tb_logger        = TensorBoardLogger(save_dir = "tensorboard_logs", name=args.experiment_name)     
 
     # -----------
 
