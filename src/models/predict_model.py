@@ -15,14 +15,7 @@ from src.models.old_train_model import RecipeRetrievalLightningModule
 from lightning.pytorch.callbacks import RichProgressBar
 
 if __name__ == "__main__":
-
-
-    # get device
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-    # Initializing tensorboard logger
-    tb_logger        = TensorBoardLogger(save_dir = "tensorboard_logs", name=args.experiment_name)    
-    
+      
     parser = argparse.ArgumentParser(description='Recipe Retrieval Training Script')
     
     # Experiment name
@@ -56,6 +49,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     args.text_mode = [item for item in args.text_mode.split(',')]
+
+    # get device
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    # Initializing tensorboard logger
+    tb_logger        = TensorBoardLogger(save_dir = "tensorboard_logs", name=args.experiment_name)  
 
     # -----------
 
@@ -96,7 +95,7 @@ if __name__ == "__main__":
                         check_val_every_n_epoch=1,)
 
     # Testing model
-    model_path = '/Users/philliphoejbjerg/Desktop/base_uncased_clip/Uden navn/version_0/checkpoints/epoch=13-step=16492.ckpt'
+    model_path = '/Users/philliphoejbjerg/Desktop/base_uncased_clip/Uden navn/base_uncased_trip/version_0/checkpoints/epoch=19-step=23560.ckpt'
 
 
     trainer.test(model = model, ckpt_path=model_path)
