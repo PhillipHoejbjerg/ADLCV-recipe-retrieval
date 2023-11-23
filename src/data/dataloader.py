@@ -122,7 +122,7 @@ class CombinedDataSet(Dataset):
             is_pos_pair = False
 
         # Building text feature
-        text = None
+        text = ''
         if 'title' in self.text_mode:
             text += _text.Title
         if 'ingredients' in self.text_mode:
@@ -206,7 +206,7 @@ def get_dataloader(args, mode = 'train'):
     # Dictionary of parameters for each mode
     mode_dict = {'train': {'batch_size': args.batch_size, 'shuffle': True},
                  'val':   {'batch_size': args.batch_size, 'shuffle': False},
-                 'test':  {'batch_size': 1000,            'shuffle': False}}
+                 'test':  {'batch_size': 100,            'shuffle': False}}
                 # we need to subsample the test set to fit in memory
     data_loader = DataLoader(data_set, batch_size=mode_dict[mode]['batch_size'], shuffle=mode_dict[mode]['shuffle'], collate_fn=coll, num_workers=args.num_workers)
 
