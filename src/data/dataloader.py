@@ -52,7 +52,7 @@ class CombinedDataSet(Dataset):
     test set should not have negative pairs
     '''
     
-    def __init__(self, p=0.2, mode='train', text=['title'], yield_raw_text=False):
+    def __init__(self, p=0.8, mode='train', text=['title'], yield_raw_text=False):
         assert mode in ['train', 'test', 'val']
         self.text_mode = text
         if self.text_mode == ['title']:
@@ -89,12 +89,15 @@ class CombinedDataSet(Dataset):
             self.vocab = get_vocab(self.datapipe, self.yield_tokens)
 
             self.text_transform = lambda x: [self.vocab['']] + [self.vocab[token] for token in self.tokenizer(x)] + [self.vocab['']]
+        
         self.csv = pd.read_csv(FILE_PATH)
+        # Shuffling csv
+        self.csv = self.csv.sample(frac=1, random_state=42).reset_index(drop=True)
+
         # Get dataset split
         # Since the text data set is used to load a corresponding image, we just select on the csv
-        # self.csv = self.csv.sample(frac=1).reset_index(drop=True)
         train_size = int(0.7 * len(self.csv))
-        val_size = int(0.1 * len(self.csv))
+        val_size   = int(0.1 * len(self.csv))
 
         if mode == 'train':
             self.csv = self.csv.iloc[:train_size, :]
@@ -117,20 +120,22 @@ class CombinedDataSet(Dataset):
             idx =  torch.randint(0,self.__len__(),(1,)).item()
             _text = self.csv.iloc[idx]
             is_pos_pair = False
-        if self.text_mode == ['title']:
-            text = _text.Title
-        elif self.text_mode == ['title', 'ingredients'] or self.text_mode[0].split() == ['title', 'ingredients']:
-            text = _text.Title + ' ' + ' '.join(str(e) for e in _text.Cleaned_Ingredients)
-        elif self.text_mode == ['title', 'instructions'] or self.text_mode[0].split() == ['title', 'instructions']:
-            text = _text.Title + ' ' + _text.Instructions
-        elif self.text_mode == ['title', 'ingredients', 'instructions'] or self.text_mode[0].split() == ['title', 'ingredients', 'instructions']:
-            text = _text.Title + ' ' + ' '.join(str(e) for e in _text.Cleaned_Ingredients) + ' ' + _text.Instructions
+
+        # Building text feature
+        text = None
+        if 'title' in self.text_mode:
+            text += _text.Title
+        if 'ingredients' in self.text_mode:
+            text += ' ' + ' '.join(str(e) for e in _text.Cleaned_Ingredients)
+        if 'instructions' in self.text_mode:
+            text += ' ' + _text.Instructions
 
         image_path = 'data/processed/Food Images/' + _text.Image_Name + '.jpg'
         image = Image.open(image_path).convert("RGB")
         image = self.transform(image)
         if self.yield_raw_text:
-            return image, text, is_pos_pair
+            # Using bert-base-uncased we need to lower txt
+            return image, text.lower(), is_pos_pair
         else:
             processed_text = torch.tensor(self.text_transform(text))
             return image, processed_text, is_pos_pair
@@ -191,13 +196,17 @@ def get_dataloader(args, mode = 'train'):
     else:
         coll = collate_batch_text
         yield_raw_text = False
+
+    # No negative pairs for ClipLoss
+    if args.loss_fn == 'ClipLoss' or args.loss_fn == 'TripletLoss':
+        args.p = 0.0
 	
     data_set  = CombinedDataSet(p=0.0, mode=mode, text=args.text_mode, yield_raw_text=yield_raw_text) if mode == 'test' else CombinedDataSet(p=args.p, mode=mode, text=args.text_mode, yield_raw_text=yield_raw_text)
 
     # Dictionary of parameters for each mode
     mode_dict = {'train': {'batch_size': args.batch_size, 'shuffle': True},
                  'val':   {'batch_size': args.batch_size, 'shuffle': False},
-                 'test':  {'batch_size': 1000,   'shuffle': False}}
+                 'test':  {'batch_size': 1000,            'shuffle': False}}
                 # we need to subsample the test set to fit in memory
     data_loader = DataLoader(data_set, batch_size=mode_dict[mode]['batch_size'], shuffle=mode_dict[mode]['shuffle'], collate_fn=coll, num_workers=args.num_workers)
 

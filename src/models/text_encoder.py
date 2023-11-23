@@ -175,8 +175,8 @@ def get_text_encoder(args, device:torch.device) -> nn.Module:
             self.device = device
             self.output_dim = 768
             
-            self.tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
-            self.model = BertModel.from_pretrained("bert-base-cased")
+            self.tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
+            self.model = BertModel.from_pretrained("bert-base-uncased")
             for param in self.model.parameters(): 
                 param.requires_grad_(False)
                     

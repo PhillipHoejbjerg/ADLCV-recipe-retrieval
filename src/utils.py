@@ -146,9 +146,4 @@ def get_loss_fn(args):
     if args.loss_fn == 'TripletLoss':
         return TripletLoss(margin = args.margin, metric = 'cosine')
 
-
-    # TODO: Figure out how to do positive pairs with no mulitples of labels    
-    if args.loss_fn == 'triplet':
-        return nn.TripletMarginLoss(margin = args.margin, reduction='mean')
-
     
