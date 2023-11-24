@@ -10,7 +10,7 @@ from src.models.text_encoder import get_text_encoder # TODO: Does not exist yet
 from src.utils import get_loss_fn
 from src.models.heads import get_head
 
-from src.models.old_train_model import RecipeRetrievalLightningModule
+from src.models.train_model import RecipeRetrievalLightningModule
 
 from lightning.pytorch.callbacks import RichProgressBar
 
@@ -32,6 +32,8 @@ if __name__ == "__main__":
     # Encoder Settings
     parser.add_argument('--embedding_dim', type=int, default=256, help='embedding dim - default 256')
     parser.add_argument('--normalize', type=bool, default=True, help='Normalize pretrained embeddings - default True')
+    parser.add_argument('--center_crop', type=bool, default=True, help='Use center-crop - default True')
+    
     
     # Loss
     parser.add_argument('--loss_fn', type=str, default="ClipLoss", help='Loss_fn - default cosine')
@@ -54,7 +56,7 @@ if __name__ == "__main__":
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Initializing tensorboard logger
-    tb_logger        = TensorBoardLogger(save_dir = "tensorboard_logs", name=args.experiment_name)  
+    tb_logger        = TensorBoardLogger(save_dir = "tensorboard_logs", name=args.experiment_name)     
 
     # -----------
 
@@ -95,7 +97,7 @@ if __name__ == "__main__":
                         check_val_every_n_epoch=1,)
 
     # Testing model
-    model_path = '/Users/philliphoejbjerg/Desktop/base_uncased_clip/Uden navn/base_uncased_trip/version_0/checkpoints/epoch=19-step=23560.ckpt'
+    model_path = '/Users/philliphoejbjerg/Desktop/base_uncased_trip/version_0/checkpoints/epoch=19-step=23560.ckpt'
 
 
     trainer.test(model = model, ckpt_path=model_path)
