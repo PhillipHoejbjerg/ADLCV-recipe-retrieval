@@ -105,7 +105,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img_z, R_z = self.img_encoder(img), self.R_encoder(R)
         
         # Normalize pretrained embeddings
-        if args.normalize:
+        if self.args.normalize:
             img_z, R_z = nn.functional.normalize(img_z, p=2, dim=-1), nn.functional.normalize(R_z, p=2, dim=-1)
 
         # Project to embedding space
@@ -312,9 +312,8 @@ if __name__ == "__main__":
 
     # Encoder Settings
     parser.add_argument('--embedding_dim', type=int, default=256, help='embedding dim - default 256')
-    parser.add_argument('--normalize', type=bool, default=True, help='Normalize pretrained embeddings - default True')
-    parser.add_argument('--center_crop', type=bool, default=True, help='Use center-crop - default True')
-    
+    parser.add_argument('--normalize', action=argparse.BooleanOptionalAction, default=True) # --normalize or --no-normalize
+    parser.add_argument('--center_crop', action=argparse.BooleanOptionalAction, default=True) # --center_crop or --no-center_crop
     
     # Loss
     parser.add_argument('--loss_fn', type=str, default="ClipLoss", help='Loss_fn - default cosine')
@@ -326,7 +325,7 @@ if __name__ == "__main__":
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate - default 0.001')
     parser.add_argument('--batch_size',    type=int, default=8, help='batch size - default 64')
     parser.add_argument('--num_epochs', type=int, default=20, help='number of epochs - default 20')
-    parser.add_argument('--lr_scheduler', type=bool, default=False, help='lr_scheduler - default False')
+    parser.add_argument('--lr_scheduler', action=argparse.BooleanOptionalAction, default=False) # --lr_scheduler or --no-lr_scheduler
     parser.add_argument('--num_workers', type=int, default=11, help='number of workers - default 0')
 
     parser.add_argument('--model_path', type=str, default=None, help='path to model - default None')
