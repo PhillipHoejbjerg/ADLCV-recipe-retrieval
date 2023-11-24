@@ -48,6 +48,8 @@ if __name__ == "__main__":
     parser.add_argument('--lr_scheduler', type=bool, default=False, help='lr_scheduler - default False')
     parser.add_argument('--num_workers', type=int, default=11, help='number of workers - default 0')
 
+    parser.add_argument('--model_path', type=str, default=None, help='path to model - default None')
+
     args = parser.parse_args()
 
     args.text_mode = [item for item in args.text_mode.split(',')]
@@ -97,7 +99,7 @@ if __name__ == "__main__":
                         check_val_every_n_epoch=1,)
 
     # Testing model
-    model_path = '/Users/philliphoejbjerg/Desktop/base_uncased_trip/version_0/checkpoints/epoch=19-step=23560.ckpt'
+    model_path = args.model_path
 
 
     trainer.test(model = model, ckpt_path=model_path)
