@@ -329,6 +329,8 @@ if __name__ == "__main__":
     parser.add_argument('--lr_scheduler', type=bool, default=False, help='lr_scheduler - default False')
     parser.add_argument('--num_workers', type=int, default=11, help='number of workers - default 0')
 
+    parser.add_argument('--model_path', type=str, default=None, help='path to model - default None')
+
     args = parser.parse_args()
 
     args.text_mode = [item for item in args.text_mode.split(',')]
