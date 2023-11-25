@@ -100,5 +100,5 @@ if __name__ == "__main__":
     # Testing model
     model_path = args.model_path
 
+    trainer.test(model = model, ckpt_path=model_path)
     trainer.predict(model = model, ckpt_path=model_path)
-    # trainer.test(model = model, ckpt_path=model_path)

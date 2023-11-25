@@ -224,73 +224,75 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         R_pred = torch.argmax(cosine_similarities, dim = 1)
 
         # first column is the first recipe wrt all images 
-        img_pred  = torch.argmax(cosine_similarities, dim = 0)        
+        img_pred  = torch.argmax(cosine_similarities, dim = 0)  
 
-        max_k = 5
+        if batch_idx == 0:      
 
-        R_top_preds = torch.topk(cosine_similarities, k=batch_size, dim=1)[1] #[:,:k]
-        img_top_preds = torch.topk(cosine_similarities, k=batch_size, dim=0)[1].T #[:k,:]
+            max_k = 5
 
-        # positions, i.e. the index of the positive element in the topk
-        R_positions = torch.Tensor([(i == R_top_preds[i]).nonzero().squeeze(0) for i in torch.arange(batch_size)])
-        img_positions = torch.Tensor([(i == img_top_preds[i]).nonzero().squeeze(0) for i in torch.arange(batch_size)])
+            R_top_preds = torch.topk(cosine_similarities, k=batch_size, dim=1)[1] #[:,:k]
+            img_top_preds = torch.topk(cosine_similarities, k=batch_size, dim=0)[1].T #[:k,:]
 
-        text_width = 25
-        # image and wordclouds  
-        # Plot the closest text as a wordcloud
-        for n_images in range(0, 40, 4):
-            fig, ax = plt.subplots(8, max_k+1, dpi=200, figsize=(15, 7),tight_layout=True)
-            for j in range(4):
-                rdn_img_to_plot = n_images+j
+            # positions, i.e. the index of the positive element in the topk
+            R_positions = torch.Tensor([(i == R_top_preds[i]).nonzero().squeeze(0) for i in torch.arange(batch_size)])
+            img_positions = torch.Tensor([(i == img_top_preds[i]).nonzero().squeeze(0) for i in torch.arange(batch_size)])
 
-                ax[2*j,0].imshow(denormalize(img[rdn_img_to_plot].permute(1, 2, 0).cpu()))
-                ax[2*j,0].axis('off')
-                # ax[2*j,0].set_title(textwrap.fill(self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size+rdn_img_to_plot,:].Title, text_width), wrap=True)
-                rect = plt.Rectangle((ax[j,0].get_xlim()[0], ax[j,0].get_ylim()[0]), ax[j,0].get_xlim()[1]-ax[j,0].get_xlim()[0], ax[j,0].get_ylim()[1]-ax[j,0].get_ylim()[0],linewidth=5,edgecolor='b',facecolor='none')
-                ax[2*j,0].add_patch(rect)  
+            text_width = 25
+            # image and wordclouds  
+            # Plot the closest text as a wordcloud
+            for n_images in range(0, 40, 4):
+                fig, ax = plt.subplots(8, max_k+1, dpi=200, figsize=(15, 7),tight_layout=True)
+                for j in range(4):
+                    rdn_img_to_plot = n_images+j
 
-                for i in range(max_k):
-                    recipe_no = R_top_preds[rdn_img_to_plot][i].item()
-                    closest_text = R[recipe_no]
-                    closest_text_title = self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size+recipe_no,:].Title
-                    # 274x169
-                    wordcloud = WordCloud(background_color='white',width=274,height=169).generate(closest_text)
+                    ax[2*j,0].imshow(denormalize(img[rdn_img_to_plot].permute(1, 2, 0).cpu()))
+                    ax[2*j,0].axis('off')
+                    # ax[2*j,0].set_title(textwrap.fill(self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size+rdn_img_to_plot,:].Title, text_width), wrap=True)
+                    rect = plt.Rectangle((ax[j,0].get_xlim()[0], ax[j,0].get_ylim()[0]), ax[j,0].get_xlim()[1]-ax[j,0].get_xlim()[0], ax[j,0].get_ylim()[1]-ax[j,0].get_ylim()[0],linewidth=5,edgecolor='b',facecolor='none')
+                    ax[2*j,0].add_patch(rect)  
 
-                    ax[2*j,i+1].imshow(wordcloud, interpolation='bilinear')
-                    # ax[2*j,i+1].set_title(textwrap.fill(closest_text_title, text_width), wrap=True)
-                    ax[2*j,i+1].axis('off')
-                    # make rectangle around this ax
-                    if R_positions[rdn_img_to_plot].item() == i:
-                        # Draw rectangle around subbplot
-                        rect = plt.Rectangle((ax[j,i+1].get_xlim()[0], ax[j,i+1].get_ylim()[0]), ax[j,i+1].get_xlim()[1]-ax[j,i+1].get_xlim()[0], ax[j,i+1].get_ylim()[1]-ax[j,i+1].get_ylim()[0],linewidth=5,edgecolor='g',facecolor='none')
-                        ax[2*j,i+1].add_patch(rect)
+                    for i in range(max_k):
+                        recipe_no = R_top_preds[rdn_img_to_plot][i].item()
+                        closest_text = R[recipe_no]
+                        closest_text_title = self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size+recipe_no,:].Title
+                        # 274x169
+                        wordcloud = WordCloud(background_color='white',width=274,height=169).generate(closest_text)
 
-                text = R[rdn_img_to_plot]
-                wordcloud = WordCloud(background_color='white',width=274,height=169).generate(text)
-                closest_text_title = self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size+rdn_img_to_plot,:].Title
+                        ax[2*j,i+1].imshow(wordcloud, interpolation='bilinear')
+                        # ax[2*j,i+1].set_title(textwrap.fill(closest_text_title, text_width), wrap=True)
+                        ax[2*j,i+1].axis('off')
+                        # make rectangle around this ax
+                        if R_positions[rdn_img_to_plot].item() == i:
+                            # Draw rectangle around subbplot
+                            rect = plt.Rectangle((ax[j,i+1].get_xlim()[0], ax[j,i+1].get_ylim()[0]), ax[j,i+1].get_xlim()[1]-ax[j,i+1].get_xlim()[0], ax[j,i+1].get_ylim()[1]-ax[j,i+1].get_ylim()[0],linewidth=5,edgecolor='g',facecolor='none')
+                            ax[2*j,i+1].add_patch(rect)
 
-                ax[2*j+1,0].imshow(wordcloud, interpolation='bilinear')
-                ax[2*j+1,0].axis('off')
-                # ax[2*j+1,0].set_title(textwrap.fill(closest_text_title, text_width), wrap=True)
-                rect = plt.Rectangle((ax[j+1,0].get_xlim()[0], ax[j+1,0].get_ylim()[0]), ax[j+1,0].get_xlim()[1]-ax[j+1,0].get_xlim()[0], ax[j+1,0].get_ylim()[1]-ax[j+1,0].get_ylim()[0],linewidth=5,edgecolor='b',facecolor='none')
-                ax[2*j+1,0].add_patch(rect)                
-                
-                for i in range(max_k):
-                    img_no = img_top_preds[rdn_img_to_plot][i].item()
-                    closest_image = img[img_no]
-                    closest_image_title = self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size+img_no,:].Title
-                    ax[2*j+1,i+1].imshow(denormalize(closest_image.permute(1, 2, 0).cpu()))
-                    ax[2*j+1,i+1].axis('off')
-                    #ax[2*j+1,i+1].set_title(textwrap.fill(closest_image_title, text_width), wrap=True)
-                    # make rectangle around this ax
-                    if img_positions[rdn_img_to_plot].item() == i:
-                        # Draw rectangle around subbplot
-                        rect = plt.Rectangle((ax[j+1,i+1].get_xlim()[0], ax[j+1,i+1].get_ylim()[0]), ax[j+1,i+1].get_xlim()[1]-ax[j+1,i+1].get_xlim()[0], ax[j+1,i+1].get_ylim()[1]-ax[j+1,i+1].get_ylim()[0],linewidth=5,edgecolor='g',facecolor='none')
-                        ax[2*j+1,i+1].add_patch(rect)
+                    text = R[rdn_img_to_plot]
+                    wordcloud = WordCloud(background_color='white',width=274,height=169).generate(text)
+                    closest_text_title = self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size+rdn_img_to_plot,:].Title
 
-            plt.savefig(f'reports/figures/model_examples_{n_images/4}.png', dpi=300, bbox_inches='tight')
-            # plt.show()
-            plt.close('all')
+                    ax[2*j+1,0].imshow(wordcloud, interpolation='bilinear')
+                    ax[2*j+1,0].axis('off')
+                    # ax[2*j+1,0].set_title(textwrap.fill(closest_text_title, text_width), wrap=True)
+                    rect = plt.Rectangle((ax[j+1,0].get_xlim()[0], ax[j+1,0].get_ylim()[0]), ax[j+1,0].get_xlim()[1]-ax[j+1,0].get_xlim()[0], ax[j+1,0].get_ylim()[1]-ax[j+1,0].get_ylim()[0],linewidth=5,edgecolor='b',facecolor='none')
+                    ax[2*j+1,0].add_patch(rect)                
+                    
+                    for i in range(max_k):
+                        img_no = img_top_preds[rdn_img_to_plot][i].item()
+                        closest_image = img[img_no]
+                        closest_image_title = self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size+img_no,:].Title
+                        ax[2*j+1,i+1].imshow(denormalize(closest_image.permute(1, 2, 0).cpu()))
+                        ax[2*j+1,i+1].axis('off')
+                        #ax[2*j+1,i+1].set_title(textwrap.fill(closest_image_title, text_width), wrap=True)
+                        # make rectangle around this ax
+                        if img_positions[rdn_img_to_plot].item() == i:
+                            # Draw rectangle around subbplot
+                            rect = plt.Rectangle((ax[j+1,i+1].get_xlim()[0], ax[j+1,i+1].get_ylim()[0]), ax[j+1,i+1].get_xlim()[1]-ax[j+1,i+1].get_xlim()[0], ax[j+1,i+1].get_ylim()[1]-ax[j+1,i+1].get_ylim()[0],linewidth=5,edgecolor='g',facecolor='none')
+                            ax[2*j+1,i+1].add_patch(rect)
+
+                plt.savefig(f'reports/figures/{self.args.experiment_name}/model_examples_{n_images/4}.png', dpi=300, bbox_inches='tight')
+                # plt.show()
+                plt.close('all')
 
         return R_pred, img_pred
 
