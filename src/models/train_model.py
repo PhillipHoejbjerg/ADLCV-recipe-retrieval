@@ -185,38 +185,26 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         img_acc = self.accuracy(img_pred, torch.arange(batch_size).to(self.device_))
         metrics['R_acc'] = R_acc
         metrics['img_acc'] = img_acc
-        
-        # Recall @ k + median ranking:
-        # https://github.com/amzn/image-to-recipe-transformers/blob/main/src/utils/metrics.py
-        
-        # find the number of elements in the ranking that have a lower distance
-        # than the positive element (whose distance is in the diagonal
-        # of the distance matrix) wrt the query. this gives the rank for each
-        # query. (+1 for 1-based indexing)
-        cosine_similarities = cosine_similarities.cpu().numpy()
-        positions = np.count_nonzero(cosine_similarities < np.diag(cosine_similarities)[:, None], axis=-1) + 1
 
-        # get the topk elements for each query (topk elements with lower dist)
-        rankings = np.argpartition(cosine_similarities, range(max_k), axis=-1)[:, :max_k]
+        # --------------------
 
-        # positive positions for each query (inputs are assumed to be aligned)
-        positive_idxs = np.array(range(cosine_similarities.shape[0]))
-        # matrix containing a cumulative sum of topk matches for each query
-        # if cum_matches_topk[q][k] = 1, it means that the positive for query q
-        # was already found in position <=k. if not, the value at that position
-        # will be 0.
-        cum_matches_topk = np.cumsum(rankings == positive_idxs[:, None],
-                                    axis=-1)
+        # Calculating recall @ k
+        R_top_preds = torch.topk(cosine_similarities, k=batch_size, dim=1)[1] #[:,:k]
+        img_top_preds = torch.topk(cosine_similarities, k=batch_size, dim=0)[1].T #[:k,:]
 
-        # pre-compute all possible recall values up to k
-        recall_values = np.mean(cum_matches_topk, axis=0)
+        # positions, i.e. the index of the positive element in the topk
+        R_positions = torch.Tensor([(i == R_top_preds[i]).nonzero().squeeze(0) for i in torch.arange(batch_size)])
+        img_positions = torch.Tensor([(i == img_top_preds[i]).nonzero().squeeze(0) for i in torch.arange(batch_size)])
 
-        # Logging metrics
-        metrics['medr'] = np.median(positions)
-        
-        for index in recall_klist:
-            metrics[f'recall_{int(index)}'] = recall_values[int(index)-1]
-        
+        # Recall @ k
+        for k in recall_klist:
+            metrics[f'R_recall_{int(k)}'] = np.mean((R_positions < k).cpu().numpy())
+            metrics[f'img_recall_{int(k)}'] = np.mean((img_positions < k).cpu().numpy())
+
+        # median ranking:
+        metrics['R_med_r'] = np.median(sorted(R_positions))
+        metrics['img_med_r'] = np.median(sorted(img_positions))
+
         self.log_dict(metrics, batch_size=batch_size)
 
     def predict_step(self, batch, batch_idx):
@@ -232,21 +220,14 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # Calculate cosine similarity
         cosine_similarities = pairwise_cosine_similarity(phi_img, phi_R)
 
-        # first row is the first img wrt all recipes      
-        R_pred = torch.argmax(cosine_similarities, dim = 1)
-
-        # first column is the first recipe wrt all images 
-        img_pred  = torch.argmax(cosine_similarities, dim = 0)
-
-        cosine_similarities = cosine_similarities.cpu().numpy()
-
         max_k = 4
-        # get the topk elements for each query (topk elements with lower dist)
-        rankings_R = np.argpartition(cosine_similarities, max_k, axis=-1)[:, :max_k]
-        # torch.topk(torch.tensor(cosine_similarities),max_k,largest=False,sorted=True,dim=-1)
-        rankings_img = np.argpartition(cosine_similarities, max_k, axis=0)[:max_k, :].transpose(1,0)
-        # with torch (it does the same)
-        # torch.topk(torch.tensor(cosine_similarities),max_k,largest=False,sorted=True,dim=0).values.permute(1,0)
+
+        R_top_preds = torch.topk(cosine_similarities, k=batch_size, dim=1)[1] #[:,:k]
+        img_top_preds = torch.topk(cosine_similarities, k=batch_size, dim=0)[1].T #[:k,:]
+
+        # positions, i.e. the index of the positive element in the topk
+        R_positions = torch.Tensor([(i == R_top_preds[i]).nonzero().squeeze(0) for i in torch.arange(batch_size)])
+        img_positions = torch.Tensor([(i == img_top_preds[i]).nonzero().squeeze(0) for i in torch.arange(batch_size)])
 
         text_width = 25
         # image and wordclouds  
@@ -259,8 +240,11 @@ class RecipeRetrievalLightningModule(L.LightningModule):
                 ax[j,0].imshow(denormalize(img[rdn_img_to_plot].permute(1, 2, 0).cpu()))
                 ax[j,0].axis('off')
                 ax[j,0].set_title(textwrap.fill(self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size+rdn_img_to_plot,:].Title, text_width), wrap=True)
+                rect = plt.Rectangle((ax[j,0].get_xlim()[0], ax[j,0].get_ylim()[0]), ax[j,0].get_xlim()[1]-ax[j,0].get_xlim()[0], ax[j,0].get_ylim()[1]-ax[j,0].get_ylim()[0],linewidth=5,edgecolor='b',facecolor='none')
+                ax[j,0].add_patch(rect)  
+
                 for i in range(max_k):
-                    recipe_no = rankings_R[rdn_img_to_plot][i].item()
+                    recipe_no = R_top_preds[rdn_img_to_plot][i].item()
                     closest_text = R[recipe_no]
                     closest_text_title = self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size+recipe_no,:].Title
                     # 274x169
@@ -269,7 +253,14 @@ class RecipeRetrievalLightningModule(L.LightningModule):
                     ax[j,i+1].imshow(wordcloud, interpolation='bilinear')
                     ax[j,i+1].set_title(textwrap.fill(closest_text_title, text_width), wrap=True)
                     ax[j,i+1].axis('off')
-            plt.savefig(f'reports/figures/im2text_{batch_idx}.png', dpi=300, bbox_inches='tight')
+                    # make rectangle around this ax
+                    if R_positions[rdn_img_to_plot].item() == i:
+                        print(f"We should add rectangle at spot {i} in image {n_images}")
+                        # Draw rectangle around subbplot
+                        rect = plt.Rectangle((ax[j,i+1].get_xlim()[0], ax[j,i+1].get_ylim()[0]), ax[j,i+1].get_xlim()[1]-ax[j,i+1].get_xlim()[0], ax[j,i+1].get_ylim()[1]-ax[j,i+1].get_ylim()[0],linewidth=5,edgecolor='g',facecolor='none')
+                        ax[j,i+1].add_patch(rect)
+                        
+            plt.savefig(f'reports/figures/im2text_{n_images}.png', dpi=300, bbox_inches='tight')
             # plt.show()
             # plot the closest images
             fig, ax = plt.subplots(2, max_k+1, dpi=200, figsize=(15, 5),tight_layout=True)
@@ -282,14 +273,28 @@ class RecipeRetrievalLightningModule(L.LightningModule):
                 ax[j,0].imshow(wordcloud, interpolation='bilinear')
                 ax[j,0].axis('off')
                 ax[j,0].set_title(textwrap.fill(closest_text_title, text_width), wrap=True)
+                rect = plt.Rectangle((ax[j,0].get_xlim()[0], ax[j,0].get_ylim()[0]), ax[j,0].get_xlim()[1]-ax[j,0].get_xlim()[0], ax[j,0].get_ylim()[1]-ax[j,0].get_ylim()[0],linewidth=5,edgecolor='b',facecolor='none')
+                ax[j,0].add_patch(rect)                
+                
+                #if img_positions[rdn_img_to_plot] < 4:
+                #    print("We're in top 4, make rectangle")
+
+
                 for i in range(max_k):
-                    img_no = rankings_img[rdn_img_to_plot][i].item()
+                    img_no = img_top_preds[rdn_img_to_plot][i].item()
                     closest_image = img[img_no]
                     closest_image_title = self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size+img_no,:].Title
                     ax[j,i+1].imshow(denormalize(closest_image.permute(1, 2, 0).cpu()))
                     ax[j,i+1].axis('off')
                     ax[j,i+1].set_title(textwrap.fill(closest_image_title, text_width), wrap=True)
-            plt.savefig(f'reports/figures/text2im_{batch_idx}.png', dpi=300, bbox_inches='tight')
+                    # make rectangle around this ax
+                    if img_positions[rdn_img_to_plot].item() == i:
+                        print(f"We should add rectangle at spot {i} in image {n_images}")
+                        # Draw rectangle around subbplot
+                        rect = plt.Rectangle((ax[j,i+1].get_xlim()[0], ax[j,i+1].get_ylim()[0]), ax[j,i+1].get_xlim()[1]-ax[j,i+1].get_xlim()[0], ax[j,i+1].get_ylim()[1]-ax[j,i+1].get_ylim()[0],linewidth=5,edgecolor='g',facecolor='none')
+                        ax[j,i+1].add_patch(rect)
+
+            plt.savefig(f'reports/figures/text2im_{n_images}.png', dpi=300, bbox_inches='tight')
             # plt.show()
             plt.close('all')
 
