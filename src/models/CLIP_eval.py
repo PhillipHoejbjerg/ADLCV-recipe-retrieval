@@ -30,22 +30,27 @@ if __name__ == "__main__":
     #data_set = CombinedDataSet(p=0.2, mode='test', text=['title'], yield_raw_text=True, args=args)
     #data_loader = DataLoader(data_set, batch_size=8, shuffle=True, collate_fn=collate_batch_text_roberta)
 
-    data_loader = get_dataloader(args, mode = 'train')
+    data_loader = get_dataloader(args, mode = 'test')
 
     # This is just for debugging, it can be done way better probably. Or we can just do it in the loop...
 
-    catcher = [] # [ [img_0 (PIL_IMG), text_0 (str)],  [img_1 (PIL_IMG), text_1 (str)], ..., [img_N (PIL_IMG), text_N (str)] ]
+    im_data = []
+    text_data = [] # [ [img_0 (PIL_IMG), text_0 (str)],  [img_1 (PIL_IMG), text_1 (str)], ..., [img_N (PIL_IMG), text_N (str)] ]
 
     for img, text, _ in data_loader:
-        for i in range(8):
-            catcher.append([to_pil_image(img[i]), text[i]])
-            break
-        break
-    inputs = processor(text=catcher[0][1], images=catcher[0][0], return_tensors="pt", padding=True)
+        for i in range(args.batch_size):
+            im_data.append(to_pil_image(img[i]))
+            text_data.append(text[i])
 
+
+
+        #print(im)
+        #print(t)
+    inputs = processor(text=text_data, images=im_data, return_tensors="pt", padding=True)
     outputs = model(**inputs)
-    print(f'Text emb_dim from CLIP:\n{outputs.text_embeds.shape}') # [B x 512]
-    print(f'Image emb_dim from CLIP:\n{outputs.image_embeds.shape}') # [B x 512]
+    T_emb, Im_emb = outputs.text_embeds, outputs.image_embeds #Could be a list?
+        #print(f'Text emb_dim from CLIP:\n{outputs.text_embeds.shape}') # [B x 512]
+        #print(f'Image emb_dim from CLIP:\n{outputs.image_embeds.shape}') # [B x 512]
 
     # from guide
     #logits_per_image = outputs.logits_per_image  # this is the image-text similarity score
