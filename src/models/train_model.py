@@ -1,33 +1,27 @@
-import torch
-import numpy as np
-import torch.nn as nn
-import lightning as L
-from lightning.pytorch.callbacks import ModelCheckpoint
-
-from torchmetrics.functional import pairwise_cosine_similarity
-from torchmetrics import Accuracy
-from lightning.pytorch.loggers import TensorBoardLogger
 import argparse
-from lightning.pytorch.callbacks import RichProgressBar
 import os
+
+import lightning as L
+import numpy as np
+import torch
+import torch.nn as nn
+from lightning.pytorch.callbacks import ModelCheckpoint, RichProgressBar
+from lightning.pytorch.loggers import TensorBoardLogger
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torchmetrics import Accuracy
+from torchmetrics.functional import pairwise_cosine_similarity
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-from src.data.dataloader import get_dataloader
-from src.models.ImageEncoder import get_image_encoder
-from src.models.text_encoder import get_text_encoder
-from src.utils import get_loss_fn
-from src.data.dataloader import denormalize
-
-from src.models.heads import get_head
+import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 
-import matplotlib.pyplot as plt
-import textwrap
-from torchvision.transforms.functional import to_pil_image
-
+from src.data.dataloader import denormalize, get_dataloader
+from src.models.heads import get_head
+from src.models.ImageEncoder import get_image_encoder
 from src.models.models import CLIP, RecipeRetrievalLightningModule
+from src.models.text_encoder import get_text_encoder
+from src.utils import denormalise_batch, get_loss_fn
 
 torch.set_float32_matmul_precision('high')
 
@@ -218,19 +212,6 @@ class RecipeRetrievalLightningModule(L.LightningModule):
 
         # Mapping to embedding space
         phi_img, phi_R = self(img, R)
-        def denormalise_batch(imgs):
-            '''denormalise a batch of images based on imagenet stats'''
-            imgs = imgs.clone()
-            imgs[:, 0, :, :] = imgs[:, 0, :, :] * 0.229 + 0.485
-            imgs[:, 1, :, :] = imgs[:, 1, :, :] * 0.224 + 0.456
-            imgs[:, 2, :, :] = imgs[:, 2, :, :] * 0.225 + 0.406
-            return imgs
-
-        features = phi_img  # the embeddings
-        title = self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size:batch_idx*batch_size+batch_size,:].Title
-        labels = title # the titles
-        label_img = denormalise_batch(img)  # the original images
-        self.logger.experiment.add_embedding(features, metadata=labels, label_img=label_img)
 
         # --------------------        
         # Calculate cosine similarity
@@ -242,7 +223,11 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # first column is the first recipe wrt all images 
         img_pred  = torch.argmax(cosine_similarities, dim = 0)  
 
-        if batch_idx == 0:      
+        if batch_idx == 0:    
+            # tensorboard embedding projector  
+            title = self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size:batch_idx*batch_size+batch_size,:].Title
+            label_img = denormalise_batch(img)  # the original images
+            self.logger.experiment.add_embedding(phi_img, metadata=title, label_img=label_img)
 
             max_k = 5
 

@@ -147,3 +147,10 @@ def get_loss_fn(args):
         return TripletLoss(margin = args.margin, metric = 'cosine')
 
     
+def denormalise_batch(imgs):
+    '''denormalise a batch of images based on imagenet stats'''
+    imgs = imgs.clone()
+    imgs[:, 0, :, :] = imgs[:, 0, :, :] * 0.229 + 0.485
+    imgs[:, 1, :, :] = imgs[:, 1, :, :] * 0.224 + 0.456
+    imgs[:, 2, :, :] = imgs[:, 2, :, :] * 0.225 + 0.406
+    return imgs
