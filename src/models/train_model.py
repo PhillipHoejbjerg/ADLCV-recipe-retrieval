@@ -413,8 +413,8 @@ if __name__ == "__main__":
         trainer.fit(model = model)
 
     # Testing model
-    trainer.test(model = model)
-    trainer.predict(model = model)
+    trainer.test(model = model, ckpt_path='best')
+    trainer.predict(model = model, ckpt_path='best')
 
     # # Testing model
     # trainer.test(model = model)
