@@ -1,22 +1,7 @@
-import torch
-import lightning as L
-from lightning.pytorch.callbacks import ModelCheckpoint
-from lightning.pytorch.loggers import TensorBoardLogger
-import argparse
-from src.data.dataloader import get_dataloader
-
-from src.models.ImageEncoder import get_image_encoder
-from src.models.text_encoder import get_text_encoder # TODO: Does not exist yet
-from src.utils import get_loss_fn
-from src.models.heads import get_head
-
-from src.models.train_model import RecipeRetrievalLightningModule
-
-from lightning.pytorch.callbacks import RichProgressBar
-
-if __name__ == "__main__":
-      
     parser = argparse.ArgumentParser(description='Recipe Retrieval Training Script')
+
+    # Baselining with pre-trained CLIP?
+    parser.add_argument('--CLIP', action=argparse.BooleanOptionalAction, default=False)
     
     # Experiment name
     parser.add_argument('--experiment_name', type=str, default="test", help='Experiment name - default test')
@@ -61,33 +46,42 @@ if __name__ == "__main__":
 
     # -----------
 
-    # Get encoders
-    img_encoder      = get_image_encoder(args, device)
-    R_encoder        = get_text_encoder(args, device) 
-    projection_head  = get_head(args, device)
-
     # Get dataloaders
     train_dataloader = get_dataloader(args, mode = 'train')
     val_dataloader   = get_dataloader(args, mode = 'val')
-    test_dataloader  = get_dataloader(args, mode = 'test')    
+    test_dataloader  = get_dataloader(args, mode = 'test')        
 
-    # Defining loss function
-    loss_fn = get_loss_fn(args)
+    # Get CLIP model
+    if args.CLIP:
+        model = CLIP(train_dataloader, 
+                val_dataloader, 
+                test_dataloader,
+                batch_size = args.batch_size,
+                args = args)
 
-    # Defining model
-    model = RecipeRetrievalLightningModule(img_encoder, 
-                                            R_encoder, 
-                                            projection_head,
-                                            train_dataloader, 
-                                            val_dataloader, 
-                                            test_dataloader,
-                                            loss_fn, 
-                                            lr = args.lr,
-                                            batch_size = args.batch_size,
-                                            embedding_dim = args.embedding_dim,
-                                            args = args)
-    
+    # Get own model
+    else:
+        # Get encoders
+        img_encoder      = get_image_encoder(args, device)
+        R_encoder        = get_text_encoder(args, device) 
+        projection_head  = get_head(args, device)
 
+        # Defining loss function
+        loss_fn = get_loss_fn(args)
+
+        # Defining model
+        model = RecipeRetrievalLightningModule(img_encoder, 
+                                                R_encoder, 
+                                                projection_head,
+                                                train_dataloader, 
+                                                val_dataloader, 
+                                                test_dataloader,
+                                                loss_fn, 
+                                                lr = args.lr,
+                                                batch_size = args.batch_size,
+                                                embedding_dim = args.embedding_dim,
+                                                args = args)
+        
     # Defining callbacks
     checkpoint_callback = ModelCheckpoint(monitor='val_loss')
 
@@ -98,7 +92,5 @@ if __name__ == "__main__":
                         check_val_every_n_epoch=1,)
 
     # Testing model
-    model_path = args.model_path
-
-    trainer.test(model = model, ckpt_path=model_path)
-    trainer.predict(model = model, ckpt_path=model_path)
+    trainer.test(model = model)
+    trainer.predict(model = model)
