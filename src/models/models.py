@@ -361,9 +361,6 @@ class CLIP(L.LightningModule):
         assert len(recall_klist) > 0, "recall_klist cannot be empty"
         metrics = {}
 
-        # TODO: DELETE THIS
-        recall_klist=(1, 5, 10)
-
         # largest k to compute recall
         max_k = int(max(recall_klist))
 
