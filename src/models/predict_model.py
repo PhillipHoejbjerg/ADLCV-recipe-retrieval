@@ -128,5 +128,5 @@ if __name__ == "__main__":
                         check_val_every_n_epoch=1,)
 
     # Testing model
-    trainer.test(model = model)
-    trainer.predict(model = model)
+    trainer.test(model = model, ckpt_path=args.model_path)
+    trainer.predict(model = model, ckpt_path=args.model_path)

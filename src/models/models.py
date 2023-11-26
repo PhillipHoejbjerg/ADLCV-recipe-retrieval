@@ -289,7 +289,9 @@ class RecipeRetrievalLightningModule(L.LightningModule):
                             # Draw rectangle around subbplot
                             rect = plt.Rectangle((ax[j+1,i+1].get_xlim()[0], ax[j+1,i+1].get_ylim()[0]), ax[j+1,i+1].get_xlim()[1]-ax[j+1,i+1].get_xlim()[0], ax[j+1,i+1].get_ylim()[1]-ax[j+1,i+1].get_ylim()[0],linewidth=5,edgecolor='g',facecolor='none')
                             ax[2*j+1,i+1].add_patch(rect)
-
+                            
+                if not os.path.isdir(f'reports/figures/{self.args.experiment_name}/'):
+                    os.makedirs(f'reports/figures/{self.args.experiment_name}/')
                 plt.savefig(f'reports/figures/{self.args.experiment_name}/model_examples_{n_images/4}.png', dpi=300, bbox_inches='tight')
                 # plt.show()
                 plt.close('all')
