@@ -67,13 +67,20 @@ class CombinedDataSet(Dataset):
         # Compute splits sizes
         # this assumes that the data is shuffled beforehand
 
-        
-        self.transform = T.Compose([
-            T.CenterCrop(224) if args.center_crop else T.Resize((224, 224)),
-            T.ToTensor(),
-            T.Normalize(mean=[0.485, 0.456, 0.406], 
-                        std=[0.229, 0.224, 0.225])
-        ])
+        if args.CLIP:
+            self.transform = T.Compose([
+                T.CenterCrop(224) if args.center_crop else T.Resize((224, 224)),
+                T.ToTensor()
+            ])
+
+        else:
+            self.transform = T.Compose([
+                T.CenterCrop(224) if args.center_crop else T.Resize((224, 224)),
+                T.ToTensor(),
+                T.Normalize(mean=[0.485, 0.456, 0.406], 
+                            std=[0.229, 0.224, 0.225])
+            ])
+
         self.p = p
         self.yield_raw_text = yield_raw_text
 
@@ -206,7 +213,7 @@ def get_dataloader(args, mode = 'train'):
     # Dictionary of parameters for each mode
     mode_dict = {'train': {'batch_size': args.batch_size, 'shuffle': True},
                  'val':   {'batch_size': args.batch_size, 'shuffle': False},
-                 'test':  {'batch_size': 1000,            'shuffle': False}}
+                 'test':  {'batch_size': 250,            'shuffle': False}}
                 # we need to subsample the test set to fit in memory
     data_loader = DataLoader(data_set, batch_size=mode_dict[mode]['batch_size'], shuffle=mode_dict[mode]['shuffle'], collate_fn=coll, num_workers=args.num_workers)
 

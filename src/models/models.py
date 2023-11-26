@@ -21,6 +21,7 @@ from src.utils import get_loss_fn
 from src.data.dataloader import denormalize
 
 from src.models.heads import get_head
+import clip  
 from wordcloud import WordCloud
 
 import matplotlib.pyplot as plt
@@ -307,16 +308,15 @@ class CLIP(L.LightningModule):
         
         super().__init__()
         self.save_hyperparameters()
+        self.device_            = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-        from transformers import CLIPProcessor, CLIPModel, CLIPConfig, CLIPTextConfig, CLIPVisionConfig        
+        from transformers import CLIPProcessor, CLIPModel, CLIPConfig, CLIPTextConfig, CLIPVisionConfig      
 
-        self.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-        self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+        self.model, self.preprocess = clip.load("ViT-B/32", device=self.device_)
 
         self.train_dataloader_  = train_dataloader
         self.val_dataloader_    = val_dataloader
         self.test_dataloader_   = test_dataloader
-        self.device_            = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.args               = args
         
         # Defining accuracy metric - depends on size of testset batch
@@ -340,11 +340,13 @@ class CLIP(L.LightningModule):
     # Forward pass
     def forward(self, img, R):
 
-        inputs = self.processor(text=R, images=[to_pil_image(image) for image in img], return_tensors="pt", padding=True)
-        outputs = self.model(**inputs)
-        T_emb, Im_emb = outputs.text_embeds, outputs.image_embeds 
+        image = torch.stack([self.preprocess(to_pil_image(image)).to(self.device_) for image in img])
+        text = clip.tokenize(R).to(self.device_)  
 
-        return Im_emb, T_emb
+        image_features = self.model.encode_image(image)
+        text_features = self.model.encode_text(text)
+
+        return image_features, text_features
 
     # Training step
     def training_step(self, batch, batch_idx):
@@ -358,6 +360,9 @@ class CLIP(L.LightningModule):
     def test_step(self, batch, batch_idx, recall_klist=(1, 5, 10, 100, 250)):
         assert len(recall_klist) > 0, "recall_klist cannot be empty"
         metrics = {}
+
+        # TODO: DELETE THIS
+        recall_klist=(1, 5, 10)
 
         # largest k to compute recall
         max_k = int(max(recall_klist))
@@ -401,8 +406,8 @@ class CLIP(L.LightningModule):
             metrics[f'img_recall_{int(k)}'] = np.mean((img_positions < k).cpu().numpy())
 
         # median ranking:
-        metrics['R_med_r'] = np.median(sorted(R_positions))
-        metrics['img_med_r'] = np.median(sorted(img_positions))
+        metrics['R_med_r'] = np.median(sorted(R_positions + 1))
+        metrics['img_med_r'] = np.median(sorted(img_positions + 1))
 
         self.log_dict(metrics, batch_size=batch_size)
 
