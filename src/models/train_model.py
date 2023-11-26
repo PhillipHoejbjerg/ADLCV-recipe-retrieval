@@ -384,3 +384,4 @@ if __name__ == "__main__":
 
     # Testing model
     trainer.test(model = model)
+    trainer.predict(model = model)
