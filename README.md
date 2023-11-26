@@ -7,6 +7,9 @@ data
 https://www.kaggle.com/datasets/pes12017000148/food-ingredients-and-recipe-dataset-with-images?rvi=1
 
 
+## Results
+
+![fds](reports/figures/triplet_proj_100_testing/model_examples_5.0.png)
 
 ==============================
 
