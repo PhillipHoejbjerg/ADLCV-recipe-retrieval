@@ -1,3 +1,39 @@
+import torch
+import numpy as np
+import torch.nn as nn
+import lightning as L
+from lightning.pytorch.callbacks import ModelCheckpoint
+
+from torchmetrics.functional import pairwise_cosine_similarity
+from torchmetrics import Accuracy
+from lightning.pytorch.loggers import TensorBoardLogger
+import argparse
+from lightning.pytorch.callbacks import RichProgressBar
+import os
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+from src.data.dataloader import get_dataloader
+from src.models.ImageEncoder import get_image_encoder
+from src.models.text_encoder import get_text_encoder
+from src.utils import get_loss_fn
+from src.data.dataloader import denormalize
+
+from src.models.heads import get_head
+from wordcloud import WordCloud
+
+import matplotlib.pyplot as plt
+import textwrap
+from torchvision.transforms.functional import to_pil_image
+
+from src.models.models import CLIP, RecipeRetrievalLightningModule
+
+torch.set_float32_matmul_precision('high')
+
+
+if __name__ == "__main__":
+       
     parser = argparse.ArgumentParser(description='Recipe Retrieval Training Script')
 
     # Baselining with pre-trained CLIP?
