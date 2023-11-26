@@ -302,7 +302,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
                             # Draw rectangle around subbplot
                             rect = plt.Rectangle((ax[j+1,i+1].get_xlim()[0], ax[j+1,i+1].get_ylim()[0]), ax[j+1,i+1].get_xlim()[1]-ax[j+1,i+1].get_xlim()[0], ax[j+1,i+1].get_ylim()[1]-ax[j+1,i+1].get_ylim()[0],linewidth=5,edgecolor='g',facecolor='none')
                             ax[2*j+1,i+1].add_patch(rect)
-
+                os.makedirs(f'reports/figures/{self.args.experiment_name}', exist_ok=True)
                 plt.savefig(f'reports/figures/{self.args.experiment_name}/model_examples_{n_images/4}.png', dpi=300, bbox_inches='tight')
                 # plt.show()
                 plt.close('all')
@@ -317,12 +317,12 @@ if __name__ == "__main__":
     parser.add_argument('--experiment_name', type=str, default="test", help='Experiment name - default test')
     
     # Experiment modes
-    parser.add_argument("--text_mode", type=str, default='title ingredients instructions', help="text mode - default title")
+    parser.add_argument("--text_mode", type=str, default='title,ingredients,instructions', help="text mode - default title")
 
     # Encoders
     parser.add_argument('--img_encoder_name', type=str, default="resnet", help='resnet, vit, efficientnet')
     parser.add_argument('--text_encoder_name', type=str, default="roberta_base", help='roberta_base, transformer_base')
-    parser.add_argument('--head_name', type=str, default="projection_head", help='projection_head')
+    parser.add_argument('--head_name', type=str, default="linear", help='projection_head')
 
     # Encoder Settings
     parser.add_argument('--embedding_dim', type=int, default=256, help='embedding dim - default 256')
@@ -337,7 +337,7 @@ if __name__ == "__main__":
     # Training params
     parser.add_argument('--p', type=float, default=0.0, help='probability of negative pair - default 0.8')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate - default 0.001')
-    parser.add_argument('--batch_size',    type=int, default=8, help='batch size - default 64')
+    parser.add_argument('--batch_size',    type=int, default=401, help='batch size - default 64')
     parser.add_argument('--num_epochs', type=int, default=20, help='number of epochs - default 20')
     parser.add_argument('--lr_scheduler', action=argparse.BooleanOptionalAction, default=False) # --lr_scheduler or --no-lr_scheduler
     parser.add_argument('--num_workers', type=int, default=11, help='number of workers - default 0')
@@ -393,9 +393,11 @@ if __name__ == "__main__":
                         check_val_every_n_epoch=1,)
 
     # # Fitting model
-    trainer.fit(model = model)
+    # trainer.fit(model = model)
 
     # # Testing model
-    trainer.test(model = model)
+    # trainer.test(model = model)
+    trainer.predict(model = model, ckpt_path='tensorboard_logs/poster/version_4/checkpoints/epoch=17-step=21204.ckpt')
+    # trainer.predict(model = model, ckpt_path='tensorboard_logs/poster/version_3/checkpoints/epoch=41-step=49476.ckpt')
 
-    # trainer.predict(model = model)
+# python src/models/train_model.py     --experiment_name triplet_proj_100_testing    --num_epochs 50     --loss_fn TripletLoss     --num_workers 0     --head_name linear     --text_mode "title,ingredients"     --lr_scheduler     --normalize     --center_crop    --batch_size 64

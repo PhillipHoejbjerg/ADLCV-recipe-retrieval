@@ -187,7 +187,15 @@ def get_text_encoder(args, device:torch.device) -> nn.Module:
             # https://github.com/moein-shariatnia/OpenAI-CLIP/blob/master/modules.py
             # we need to truncate the input sequence to 512 tokens due to limitations of the model
             tokens = self.tokenizer(x, return_tensors = 'pt', padding=True, truncation=True)
-           
+            # # visualise tokens as matrix
+            # import matplotlib.pyplot as plt
+            # fig, ax = plt.subplots(1,1, tight_layout=True, dpi=300)
+            # ax.set_title('Tokenisation of title, ingredients and instructions')
+            # ax.set_xlabel('Token index')
+            # ax.set_ylabel('Batch index')
+            # tok = tokens['input_ids'] > 0
+            # ax.imshow(tokens['input_ids'] > 0)
+            # plt.show()
             output = self.model(**tokens.to(self.device))
             last_hidden_state = output.last_hidden_state[:, 0, :]
             # output = self.model.pooler(last_hidden_state)            
