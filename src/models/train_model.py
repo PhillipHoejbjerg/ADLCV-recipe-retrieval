@@ -215,6 +215,19 @@ class RecipeRetrievalLightningModule(L.LightningModule):
 
         # Mapping to embedding space
         phi_img, phi_R = self(img, R)
+        def denormalise_batch(imgs):
+            '''denormalise a batch of images based on imagenet stats'''
+            imgs = imgs.clone()
+            imgs[:, 0, :, :] = imgs[:, 0, :, :] * 0.229 + 0.485
+            imgs[:, 1, :, :] = imgs[:, 1, :, :] * 0.224 + 0.456
+            imgs[:, 2, :, :] = imgs[:, 2, :, :] * 0.225 + 0.406
+            return imgs
+
+        features = phi_img  # the embeddings
+        title = self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size:batch_idx*batch_size+batch_size,:].Title
+        labels = title # the titles
+        label_img = denormalise_batch(img)  # the original images
+        self.logger.experiment.add_embedding(features, metadata=labels, label_img=label_img)
 
         # --------------------        
         # Calculate cosine similarity
@@ -318,7 +331,7 @@ if __name__ == "__main__":
     
     # Loss
     parser.add_argument('--loss_fn', type=str, default="ClipLoss", help='Loss_fn - default cosine')
-    parser.add_argument('--margin', type=float, default=0.5, help='margin (for loss function) - default 0.5')
+    parser.add_argument('--margin', type=float, default=0.3, help='margin (for loss function) - default 0.3')
     parser.add_argument('-t', '--temperature', type=float, default=0.0, help='https://velog.io/@clayryu328/paper-review-CLIP-Learning-Transferable-Visual-Models-From-Natural-Language-Supervision')
 
     # Training params
@@ -379,8 +392,10 @@ if __name__ == "__main__":
                         max_epochs=args.num_epochs,
                         check_val_every_n_epoch=1,)
 
-    # Fitting model
+    # # Fitting model
     trainer.fit(model = model)
 
-    # Testing model
+    # # Testing model
     trainer.test(model = model)
+
+    # trainer.predict(model = model)
