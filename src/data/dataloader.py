@@ -67,13 +67,20 @@ class CombinedDataSet(Dataset):
         # Compute splits sizes
         # this assumes that the data is shuffled beforehand
 
-        
-        self.transform = T.Compose([
-            T.CenterCrop(224) if args.center_crop else T.Resize((224, 224)),
-            T.ToTensor(),
-            T.Normalize(mean=[0.485, 0.456, 0.406], 
-                        std=[0.229, 0.224, 0.225])
-        ])
+        if args.CLIP:
+            self.transform = T.Compose([
+                T.CenterCrop(224) if args.center_crop else T.Resize((224, 224)),
+                T.ToTensor()
+            ])
+
+        else:
+            self.transform = T.Compose([
+                T.CenterCrop(224) if args.center_crop else T.Resize((224, 224)),
+                T.ToTensor(),
+                T.Normalize(mean=[0.485, 0.456, 0.406], 
+                            std=[0.229, 0.224, 0.225])
+            ])
+
         self.p = p
         self.yield_raw_text = yield_raw_text
 

@@ -25,6 +25,9 @@ from wordcloud import WordCloud
 
 import matplotlib.pyplot as plt
 import textwrap
+from torchvision.transforms.functional import to_pil_image
+
+from src.models.models import CLIP, RecipeRetrievalLightningModule
 
 torch.set_float32_matmul_precision('high')
 
@@ -303,6 +306,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
                             rect = plt.Rectangle((ax[j+1,i+1].get_xlim()[0], ax[j+1,i+1].get_ylim()[0]), ax[j+1,i+1].get_xlim()[1]-ax[j+1,i+1].get_xlim()[0], ax[j+1,i+1].get_ylim()[1]-ax[j+1,i+1].get_ylim()[0],linewidth=5,edgecolor='g',facecolor='none')
                             ax[2*j+1,i+1].add_patch(rect)
                 os.makedirs(f'reports/figures/{self.args.experiment_name}', exist_ok=True)
+                os.makedirs(f'reports/figures/{self.args.experiment_name}', exist_ok=True)
                 plt.savefig(f'reports/figures/{self.args.experiment_name}/model_examples_{n_images/4}.png', dpi=300, bbox_inches='tight')
                 # plt.show()
                 plt.close('all')
@@ -312,6 +316,9 @@ class RecipeRetrievalLightningModule(L.LightningModule):
 if __name__ == "__main__":
        
     parser = argparse.ArgumentParser(description='Recipe Retrieval Training Script')
+
+    # Baselining with pre-trained CLIP?
+    parser.add_argument('--CLIP', action=argparse.BooleanOptionalAction, default=False)
     
     # Experiment name
     parser.add_argument('--experiment_name', type=str, default="test", help='Experiment name - default test')
@@ -340,7 +347,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size',    type=int, default=401, help='batch size - default 64')
     parser.add_argument('--num_epochs', type=int, default=20, help='number of epochs - default 20')
     parser.add_argument('--lr_scheduler', action=argparse.BooleanOptionalAction, default=False) # --lr_scheduler or --no-lr_scheduler
-    parser.add_argument('--num_workers', type=int, default=11, help='number of workers - default 0')
+    parser.add_argument('--num_workers', type=int, default=5, help='number of workers - default 0')
 
     parser.add_argument('--model_path', type=str, default=None, help='path to model - default None')
 
@@ -356,33 +363,42 @@ if __name__ == "__main__":
 
     # -----------
 
-    # Get encoders
-    img_encoder      = get_image_encoder(args, device)
-    R_encoder        = get_text_encoder(args, device) 
-    projection_head  = get_head(args, device)
-
     # Get dataloaders
     train_dataloader = get_dataloader(args, mode = 'train')
     val_dataloader   = get_dataloader(args, mode = 'val')
-    test_dataloader  = get_dataloader(args, mode = 'test')    
+    test_dataloader  = get_dataloader(args, mode = 'test')        
 
-    # Defining loss function
-    loss_fn = get_loss_fn(args)
+    # Get CLIP model
+    if args.CLIP:
+        model = CLIP(train_dataloader, 
+                val_dataloader, 
+                test_dataloader,
+                batch_size = args.batch_size,
+                args = args)
 
-    # Defining model
-    model = RecipeRetrievalLightningModule(img_encoder, 
-                                            R_encoder, 
-                                            projection_head,
-                                            train_dataloader, 
-                                            val_dataloader, 
-                                            test_dataloader,
-                                            loss_fn, 
-                                            lr = args.lr,
-                                            batch_size = args.batch_size,
-                                            embedding_dim = args.embedding_dim,
-                                            args = args)
-    
+    # Get own model
+    else:
+        # Get encoders
+        img_encoder      = get_image_encoder(args, device)
+        R_encoder        = get_text_encoder(args, device) 
+        projection_head  = get_head(args, device)
 
+        # Defining loss function
+        loss_fn = get_loss_fn(args)
+
+        # Defining model
+        model = RecipeRetrievalLightningModule(img_encoder, 
+                                                R_encoder, 
+                                                projection_head,
+                                                train_dataloader, 
+                                                val_dataloader, 
+                                                test_dataloader,
+                                                loss_fn, 
+                                                lr = args.lr,
+                                                batch_size = args.batch_size,
+                                                embedding_dim = args.embedding_dim,
+                                                args = args)
+        
     # Defining callbacks
     checkpoint_callback = ModelCheckpoint(monitor='val_loss')
 
@@ -393,11 +409,16 @@ if __name__ == "__main__":
                         check_val_every_n_epoch=1,)
 
     # # Fitting model
-    # trainer.fit(model = model)
+    if not args.CLIP:
+        trainer.fit(model = model)
+
+    # Testing model
+    trainer.test(model = model)
+    trainer.predict(model = model)
 
     # # Testing model
     # trainer.test(model = model)
-    trainer.predict(model = model, ckpt_path='tensorboard_logs/poster/version_4/checkpoints/epoch=17-step=21204.ckpt')
+    # trainer.predict(model = model, ckpt_path='tensorboard_logs/poster/version_4/checkpoints/epoch=17-step=21204.ckpt')
     # trainer.predict(model = model, ckpt_path='tensorboard_logs/poster/version_3/checkpoints/epoch=41-step=49476.ckpt')
 
 # python src/models/train_model.py     --experiment_name triplet_proj_100_testing    --num_epochs 50     --loss_fn TripletLoss     --num_workers 0     --head_name linear     --text_mode "title,ingredients"     --lr_scheduler     --normalize     --center_crop    --batch_size 64
