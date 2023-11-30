@@ -19,7 +19,7 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
 
     class ResNet50(nn.Module):
 
-        def __init__(self, full_freeze:bool, device:torch.device):
+        def __init__(self, device:torch.device):
             """ Image encoder to obtain features from images. Contains pretrained Resnet50 with last layer removed 
                 and a linear layer with the output dimension of (BATCH, image_emb_dim)
 
@@ -30,7 +30,6 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
             """
             
             super(ResNet50, self).__init__()
-            self.full_freeze = full_freeze
             self.device = device
             
             # pretrained Resnet50 model with freezed parameters
@@ -81,7 +80,7 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
         
     class ViT_Base(nn.Module):
 
-        def __init__(self, output_dim:int, full_freeze:bool, device:torch.device):
+        def __init__(self, device:torch.device):
             """ Image encoder to obtain features from images. Contains pretrained Resnet50 with last layer removed 
                 and a linear layer with the output dimension of (BATCH, image_emb_dim)
 
@@ -92,27 +91,19 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
             """
             
             super(ViT_Base, self).__init__()
-            self.full_freeze = full_freeze
-            self.output_dim = output_dim
             self.device = device
-            
-            print(f"Encoder:\n \
-                    Encoder dimension: {self.output_dim}")
             
             # pretrained Resnet50 model with freezed parameters
             self.vit = models.vit_b_16(weights='DEFAULT')
             for param in self.vit.parameters(): 
                 param.requires_grad_(False)
-                
-            # redefine heads layer
-            self.vit.heads = nn.Sequential(nn.Linear(in_features=self.vit.heads.head.in_features,
-                                            out_features=self.output_dim))
-            
-            if self.full_freeze:
-                for param in self.vit.heads.parameters():
-                    param.requires_grad_(False)
 
-            
+            # Output dim for the projection head
+            self.output_dim = 1000
+
+            print(f"Encoder:\n \
+                    Encoder dimension: {self.output_dim}")                        
+                
         def forward(self, images: torch.Tensor) -> torch.Tensor:
             """ Forward operation of encoder, passing images through resnet and then linear layer.
 
@@ -128,7 +119,7 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
             
     class EfficientNet(nn.Module):
         
-        def __init__(self, output_dim:int, full_freeze: bool, device:torch.device):
+        def __init__(self, device:torch.device):
             """ Image encoder to obtain features from images. Contains pretrained Resnet50 with last layer removed 
                 and a linear layer with the output dimension of (BATCH, image_emb_dim)
 
@@ -137,21 +128,32 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
                 
                 device (torch.device)
             """
-            
+
             super(EfficientNet, self).__init__()
-            self.full_freeze = full_freeze
-            self.output_dim = output_dim
-            self.device = device
+            self.device = device            
             
-            print(f"Encoder:\n \
-                    Encoder dimension: {self.output_dim}")
+            # Following is a fix to error: https://github.com/pytorch/vision/issues/7744
+            from torchvision.models import efficientnet_b0, EfficientNet_B0_Weights
+            from torchvision.models._api import WeightsEnum
+            from torch.hub import load_state_dict_from_url
+
+            def get_state_dict(self, *args, **kwargs):
+                kwargs.pop("check_hash")
+                return load_state_dict_from_url(self.url, *args, **kwargs)
+            WeightsEnum.get_state_dict = get_state_dict
             
             # pretrained Resnet50 model with freezed parameters
-            self.en = models.efficientnet_b0(weights='DEFAULT')
+            self.en = efficientnet_b0(weights="DEFAULT")
             for param in self.en.parameters(): 
                 param.requires_grad_(False)
+
+            self.output_dim = 1000
+
+            print(f"Encoder:\n \
+                    Encoder dimension: {self.output_dim}")            
                 
             # redefine heads layer
+            """
             self.en.classifier = nn.Sequential(
                                                 nn.Dropout(p=0.2, inplace=True),
                                                 nn.Linear(  
@@ -159,9 +161,7 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
                                                             out_features=self.output_dim,
                                                         ),
                                                )
-            if self.full_freeze:
-                for param in self.en.classifier.parameters():
-                    param.requires_grad_(False)
+            """
             
         def forward(self, images: torch.Tensor) -> torch.Tensor:
             """ Forward operation of encoder, passing images through resnet and then linear layer.
@@ -180,11 +180,11 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
     
     
     if args.img_encoder_name == 'resnet':
-        return ResNet50(full_freeze=False, device=device_)
+        return ResNet50(device=device_)
     elif args.img_encoder_name == 'vit':
-        return ViT_Base(output_dim=args.embedding_dim, full_freeze=args.full_freeze, device=device_)
+        return ViT_Base(device=device_)
     elif args.img_encoder_name == 'efficientnet':
-        return EfficientNet(output_dim=args.embedding_dim, full_freeze=args.full_freeze, device=device_)
+        return EfficientNet(device=device_)
     elif args.img_encoder_name == 'vit_blank':
         config = {
             "patch_size": 16,  # Input image size: 224x224 -> 14x14 patches

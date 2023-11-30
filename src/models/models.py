@@ -17,7 +17,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 from src.data.dataloader import get_dataloader
 from src.models.ImageEncoder import get_image_encoder
 from src.models.text_encoder import get_text_encoder
-from src.utils import get_loss_fn
+from src.utils import get_loss_fn, denormalise_batch
 from src.data.dataloader import denormalize
 
 from src.models.heads import get_head
@@ -27,6 +27,7 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import textwrap
 from torchvision.transforms.functional import to_pil_image
+
 
 class RecipeRetrievalLightningModule(L.LightningModule):
     def __init__(self, 
@@ -226,7 +227,11 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # first column is the first recipe wrt all images 
         img_pred  = torch.argmax(cosine_similarities, dim = 0)  
 
-        if batch_idx == 0:      
+        if batch_idx == 0:    
+            # tensorboard embedding projector  
+            title = self.test_dataloader_.dataset.csv.iloc[batch_idx*batch_size:batch_idx*batch_size+batch_size,:].Title
+            label_img = denormalise_batch(img)  # the original images
+            self.logger.experiment.add_embedding(phi_img, metadata=title, label_img=label_img)
 
             max_k = 5
 
@@ -289,15 +294,13 @@ class RecipeRetrievalLightningModule(L.LightningModule):
                             # Draw rectangle around subbplot
                             rect = plt.Rectangle((ax[j+1,i+1].get_xlim()[0], ax[j+1,i+1].get_ylim()[0]), ax[j+1,i+1].get_xlim()[1]-ax[j+1,i+1].get_xlim()[0], ax[j+1,i+1].get_ylim()[1]-ax[j+1,i+1].get_ylim()[0],linewidth=5,edgecolor='g',facecolor='none')
                             ax[2*j+1,i+1].add_patch(rect)
-                            
-                if not os.path.isdir(f'reports/figures/{self.args.experiment_name}/'):
-                    os.makedirs(f'reports/figures/{self.args.experiment_name}/')
+
+                os.makedirs(f'reports/figures/{self.args.experiment_name}', exist_ok=True)
                 plt.savefig(f'reports/figures/{self.args.experiment_name}/model_examples_{n_images/4}.png', dpi=300, bbox_inches='tight')
                 # plt.show()
                 plt.close('all')
 
         return R_pred, img_pred
-
 
 class CLIP(L.LightningModule):    
     def __init__(self, 
