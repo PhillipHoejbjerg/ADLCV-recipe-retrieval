@@ -54,6 +54,7 @@ if __name__ == "__main__":
     parser.add_argument('--embedding_dim', type=int, default=256, help='embedding dim - default 256')
     parser.add_argument('--normalize', action=argparse.BooleanOptionalAction, default=True) # --normalize or --no-normalize
     parser.add_argument('--center_crop', action=argparse.BooleanOptionalAction, default=True) # --center_crop or --no-center_crop
+    parser.add_argument('--ood_phillip_data', action=argparse.BooleanOptionalAction, default=False) # --ood_phillip_data or --no-ood_phillip_data
     
     # Loss
     parser.add_argument('--loss_fn', type=str, default="ClipLoss", help='Loss_fn - default cosine')
@@ -128,5 +129,5 @@ if __name__ == "__main__":
                         check_val_every_n_epoch=1,)
 
     # Testing model
-    trainer.test(model = model, ckpt_path=args.model_path)
+    # trainer.test(model = model, ckpt_path=args.model_path)
     trainer.predict(model = model, ckpt_path=args.model_path)

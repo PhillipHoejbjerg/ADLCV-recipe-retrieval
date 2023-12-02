@@ -19,7 +19,7 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
 
     class ResNet50(nn.Module):
 
-        def __init__(self, device:torch.device):
+        def __init__(self, args, device:torch.device):
             """ Image encoder to obtain features from images. Contains pretrained Resnet50 with last layer removed 
                 and a linear layer with the output dimension of (BATCH, image_emb_dim)
 
@@ -34,8 +34,10 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
             
             # pretrained Resnet50 model with freezed parameters
             resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
-            for param in resnet.parameters(): 
-                param.requires_grad_(False)
+
+            if args.freeze_models:
+                for param in resnet.parameters(): 
+                    param.requires_grad_(False)
             
             # remove last layer 
             modules = list(resnet.children())[:-1]
@@ -80,7 +82,7 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
         
     class ViT_Base(nn.Module):
 
-        def __init__(self, device:torch.device):
+        def __init__(self, args, device:torch.device):
             """ Image encoder to obtain features from images. Contains pretrained Resnet50 with last layer removed 
                 and a linear layer with the output dimension of (BATCH, image_emb_dim)
 
@@ -95,8 +97,10 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
             
             # pretrained Resnet50 model with freezed parameters
             self.vit = models.vit_b_16(weights='DEFAULT')
-            for param in self.vit.parameters(): 
-                param.requires_grad_(False)
+
+            if args.freeze_models:
+                for param in self.vit.parameters(): 
+                    param.requires_grad_(False)
 
             # Output dim for the projection head
             self.output_dim = 1000
@@ -180,11 +184,11 @@ def get_image_encoder(args, device_:torch.device) -> nn.Module:
     
     
     if args.img_encoder_name == 'resnet':
-        return ResNet50(device=device_)
+        return ResNet50(args, device=device_)
     elif args.img_encoder_name == 'vit':
-        return ViT_Base(device=device_)
+        return ViT_Base(args, device=device_)
     elif args.img_encoder_name == 'efficientnet':
-        return EfficientNet(device=device_)
+        return EfficientNet(args, device=device_)
     elif args.img_encoder_name == 'vit_blank':
         config = {
             "patch_size": 16,  # Input image size: 224x224 -> 14x14 patches

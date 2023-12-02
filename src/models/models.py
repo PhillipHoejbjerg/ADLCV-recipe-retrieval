@@ -217,7 +217,75 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         # Mapping to embedding space
         phi_img, phi_R = self(img, R)
 
-        # --------------------        
+        # ------------ Plots of OOD data ----------------
+
+        # Testing Smoerrebroed
+        if self.args.ood_phillip_data:
+            phi_R = torch.cat(torch.load('/Users/philliphoejbjerg/Desktop/models/test_embeddings.pt'))
+            # Loading and flattening recipes
+            R = [item for sublist in torch.load('/Users/philliphoejbjerg/Desktop/models/test_strings.pt') for item in sublist]
+
+            if self.args.CLIP:
+                smoerrebroeds_recipe = 'Smørrebrød (Danish Open-faced Sandwiches) Seafood'
+            else:
+                smoerrebroeds_recipe = '''Smørrebrød (Danish Open-faced Sandwiches) Seafood, 1 jar marinated herring (you can get this at IKEA or possibly at your local grocery store!), 1 pack frozen baby shrimp (you can get this at IKEA or possibly at your local grocery store - you are looking for small shrimp!), 1 pack smoked salmon (usually come in 4oz packs) (get your favorite kind!), 1-2 tins mackerel in tomato sauce (you can get these from Scandinavian stores, or in a pinch, you can find tinned mackerel in oil in most grocery stores!), Meat & Eggs, 1 leverpostej/liver pate (we have a recipe if you would like to make a homemade version, or you can find liver pate in most grocery stores!), Frikadeller/Danish meatballs (we have a recipe for homemade danish meatballs here; the recipe will yield leftover meatballs!), 1 pack roast beef (we just get pre-packaged deli meat, ~8oz!), 4 hardboiled eggs, Vegetables, 8 small boiled potatoes, 4 campari sized tomatoes, 1 cucumber, 1 avocado, 1 head Butter lettuce (any crunchy, larger leaf lettuce will work!), 4-5 radishes (this is optional but we love the crunch the radishes add!), 1-2 pickles (optional), Toppings, Condiments, and Garnishes, 1 jar pickled beets (you can find pickled beets at Scandinavian stores, or see our recipe here!), Capers (optional), Mayonnaise (optional), Danish Remoulade (you can find remoulade at Scandinavian stores, or see our recipe here!), Butter (for spreading on the bread), Sour Cream (optional), Fried Onions (you can find these at IKEA, Trader Joes, or other grocery stores!), Fresh dill, Chives, Micro greens (optional, but they add great texture and flavor!), Sliced red onion (even better if you have time to pickle the red onions; you can also rinse them to remove some of the sharp onion flavor!), 1 lemon, Bread, 2 loaves of danish rye bread (we have a recipe here for rugbrød; this may seem like a lot, but you can always eat leftover bread! you can also often find pre-sliced seeded rye bread in grocery stores, or premade mixes at Scandinavian stores!), Prepare for your meal by making ahead certain items, either the day before your meal, or the morning of. These items (if making them from scratch) include liver pate, danish meatballs, remoulade, pickled beets, and the rye bread. Slice and prepare all of the vegetables, wash the lettuce and herbs, and prepare the garnishes by either setting them on the table or placing in serving containers/bowls. Boil potatoes and eggs as well. Slice the rye bread a little over 1/4" thick. Now you can either arrange all the ingredients including the fish and the meats on serving platters and allow guests to build their own sandwiches, or you can prepare each version of the sandwich for everyone at a time. We like to put everything out and prepare our own sandwiches starting with fish, then meats, and then vegetables. Refer to our list above to see how we like to construct each sandwich! And if you're like us, buckle up for a lunch that probably lasts six hours!'''
+            R.append(smoerrebroeds_recipe)
+
+            import torchvision.transforms as T
+            from PIL import Image
+            import glob
+
+            transform = T.Compose([
+                T.Resize((274, 169)),
+                T.CenterCrop(224),
+                T.RandomRotation((270,270)),
+                T.ToTensor(),
+                T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ])        
+
+            image_list = []
+            for filename in glob.glob('/Users/philliphoejbjerg/Desktop/food/*.jpg'): #assuming jpeg
+                im=transform(Image.open(filename).convert("RGB"))
+                image_list.append(im)
+
+            # Getting latent space representations
+            OOD_z = self.img_encoder(torch.stack(image_list))
+            smoerebroed_z = self.R_encoder(R[-1])
+            
+            # Normalize pretrained embeddings
+            if self.args.normalize:
+                OOD_z = nn.functional.normalize(OOD_z, p=2, dim=-1)
+                smoerebroed_z = nn.functional.normalize(smoerebroed_z, p=2, dim=-1)                
+
+            # Project to embedding space
+            phi_OOD = self.W_img(OOD_z)
+            phi_smoerebroed = self.W_R(smoerebroed_z)
+
+            sim = pairwise_cosine_similarity(phi_OOD, torch.cat([phi_R, phi_smoerebroed]))   
+
+            OOD_top_preds = torch.topk(sim, k=len(R), dim=1)[1]
+
+            max_k = 5
+            text_width = 25
+
+            fig, ax = plt.subplots(len(image_list), max_k+1, dpi=200, figsize=(15, 7),tight_layout=True)
+            for i, top_preds in enumerate(OOD_top_preds[:,:max_k]):
+
+                ax[0].imshow(denormalize(image_list[i].permute(1, 2, 0).cpu()))
+                ax[0].axis('off')
+                
+                for j, pred in enumerate(top_preds):
+                    wc = WordCloud(background_color='white',width=274,height=169).generate(R[pred.item()])        
+                    ax[j+1].imshow(wc, interpolation='bilinear')    
+                    ax[j+1].axis('off')
+                    # adding title
+                    # ax[i,j+1].set_title(textwrap.fill(self.test_dataloader_.dataset.csv.iloc[pred.item(),:].Title, 8), wrap=True)
+                    # ax[i,j+1].set_title(self.test_dataloader_.dataset.csv.iloc[pred.item(),:].Title, wrap=True, fontsize=8)
+
+            os.makedirs(f'reports/figures/{self.args.experiment_name}', exist_ok=True)
+            plt.savefig(f'reports/figures/{self.args.experiment_name}/smoerebrød.png', dpi=300, bbox_inches='tight')
+    
+        # --------------------   ACTUAL PLOTS -----------------------     
         # Calculate cosine similarity
         cosine_similarities = pairwise_cosine_similarity(phi_img, phi_R)
 
@@ -225,7 +293,7 @@ class RecipeRetrievalLightningModule(L.LightningModule):
         R_pred = torch.argmax(cosine_similarities, dim = 1)
 
         # first column is the first recipe wrt all images 
-        img_pred  = torch.argmax(cosine_similarities, dim = 0)  
+        img_pred  = torch.argmax(cosine_similarities, dim = 0) 
 
         if batch_idx == 0:    
             # tensorboard embedding projector  

@@ -43,6 +43,8 @@ if __name__ == "__main__":
     parser.add_argument('--img_encoder_name', type=str, default="resnet", help='resnet, vit, efficientnet')
     parser.add_argument('--text_encoder_name', type=str, default="roberta_base", help='roberta_base, transformer_base')
     parser.add_argument('--head_name', type=str, default="linear", help='projection_head')
+    parser.add_argument('--freeze_models', action=argparse.BooleanOptionalAction, default=True)
+
 
     # Encoder Settings
     parser.add_argument('--embedding_dim', type=int, default=256, help='embedding dim - default 256')
